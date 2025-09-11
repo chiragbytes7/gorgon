@@ -137,6 +137,7 @@ func (db *database) SetUp() error {
 	if err := db.httpPost(opt.Nodes[0], "pools/default/buckets", map[string]string{
 		"name":           "default",
 		"ramQuota":       "1024",
+		"storageBackend": "couchstore",
 		"evictionPolicy": "fullEviction",
 		"replicaNumber":  strconv.Itoa(replicas),
 		"flushEnabled":   "1"}); err != nil {

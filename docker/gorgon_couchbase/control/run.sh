@@ -1,6 +1,7 @@
 set -o errexit
 set -o pipefail
 set -o nounset
+shopt -s nullglob
 
 export PATH=/src/gorgon_couchbase:$PATH
 
@@ -38,7 +39,6 @@ NODES=${NODES:-'n0.local,n1.local,n2.local'}
         run
 } 2>&1 | tee gorgon.log
 
-touch .html
 tar -czf files.tgz gorgon.log *.html
 
 echo

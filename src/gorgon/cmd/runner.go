@@ -11,6 +11,7 @@ import (
 
 	"github.com/anishathalye/porcupine"
 	"github.com/couchbaselabs/gorgon/src/gorgon"
+	"github.com/couchbaselabs/gorgon/src/gorgon/checkers"
 	"github.com/couchbaselabs/gorgon/src/gorgon/log"
 )
 
@@ -155,11 +156,11 @@ func (runner *Runner) Check(history []gorgon.Operation, dir string) (err error) 
 	dmodel := ndmodel.ToModel()
 	partitions := model.Partition(history)
 	now := time.Now()
+	linearizable := true
 	for i, part := range partitions {
 		hist := make([]porcupine.Operation, len(part))
-		for i := 0; i < len(part); i++ {
-			op := part[i]
-			hist[i] = porcupine.Operation{
+		for j, op := range part {
+			hist[j] = porcupine.Operation{
 				ClientId: op.ClientId,
 				Input:    op.Input,
 				Call:     op.Call,
@@ -170,6 +171,7 @@ func (runner *Runner) Check(history []gorgon.Operation, dir string) (err error) 
 		result, info := porcupine.CheckOperationsVerbose(dmodel, hist, 40*time.Second)
 		level := log.INFO
 		if result != porcupine.Ok {
+			linearizable = false
 			level = log.WARNING
 			filePath := path.Join(dir, EscapeFileName(fmt.Sprintf(
 				"%s.%s.%d.html", now.Format(fileTime), runner.name, i)))
@@ -179,6 +181,27 @@ func (runner *Runner) Check(history []gorgon.Operation, dir string) (err error) 
 			}
 		}
 		log.Log(level, "[%s] Checked partition %d - %s", runner.name, i, result)
+	}
+	if !linearizable {
+		var hist [][]gorgon.Operation
+		for _, op := range history {
+			for len(hist) <= op.ClientId {
+				hist = append(hist, nil)
+			}
+			hist[op.ClientId] = append(hist[op.ClientId], op)
+		}
+		result, info := CheckSeqnuentialConsistency(model, hist, time.Minute)
+		level := log.INFO
+		if result != checkers.Ok {
+			level = log.WARNING
+		}
+		filePath := path.Join(dir, EscapeFileName(fmt.Sprintf(
+			"%s.%s.html", now.Format(fileTime), runner.name)))
+		visErr := checkers.VisualizeSequentialPath(model, hist, info, filePath)
+		if visErr != nil && err == nil {
+			err = visErr
+		}
+		log.Log(level, "[%s] Checked sequential consistency - %s", runner.name, result)
 	}
 	return
 }

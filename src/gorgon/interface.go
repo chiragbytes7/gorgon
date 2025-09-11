@@ -81,8 +81,14 @@ type Model struct {
 	// Step function for the system. Returns all possible next states for
 	// the given state, input, and output. If the system cannot step with
 	// the given state/input to produce the given output, this function
-	// should return an empty slice.
+	// should return an empty slice.s
 	Step func(state State, input Instruction, output Output) []State
+	//
+	Values func(input Instruction, output Output) (reads []KeyValueInt, writes []KeyValueInt)
+	//
+	ValuesOvewritten func(state State, input Instruction, output Output) []KeyValueInt
+	// Hash function on states.
+	Hash func(state State) uint64
 	// Equality on states. If left nil, this package will use == as a
 	// fallback.
 	Equal func(state1, state2 State) bool
@@ -90,4 +96,9 @@ type Model struct {
 	DescribeOperation func(input Instruction, output Output) string
 	// For visualization purposes, describe a state as a string.
 	DescribeState func(state State) string
+}
+
+type KeyValueInt struct {
+	Key   string
+	Value int
 }

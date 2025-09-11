@@ -17,17 +17,20 @@ func GetSetWorkload() gorgon.Workload {
 
 func GetSetModel() gorgon.Model {
 	return gorgon.Model{
-		Init: func() []gorgon.State { return []gorgon.State{IntMap{}} },
+		Init: func() []gorgon.State { return []gorgon.State{gorgon.IntMap{}} },
+		Hash: func(state gorgon.State) uint64 {
+			return state.(gorgon.IntMap).Hash()
+		},
 		Equal: func(s1, s2 gorgon.State) bool {
-			return s1.(IntMap).Equals(s2.(IntMap))
+			return s1.(gorgon.IntMap).Equals(s2.(gorgon.IntMap))
 		},
 		DescribeState: func(state gorgon.State) string {
-			return state.(IntMap).String()
+			return state.(gorgon.IntMap).String()
 		},
 		DescribeOperation: DescribeOperation,
 		Partition:         PartitionByKey,
-		Step: func(state gorgon.State, input gorgon.Instruction, output interface{}) []gorgon.State {
-			stateMap := state.(IntMap)
+		Step: func(state gorgon.State, input gorgon.Instruction, output gorgon.Output) []gorgon.State {
+			stateMap := state.(gorgon.IntMap)
 			switch instr := input.(type) {
 			case *generators.GetInstruction:
 				if _, ok := output.(error); ok {
@@ -52,6 +55,30 @@ func GetSetModel() gorgon.Model {
 					return nil
 				}
 				return []gorgon.State{stateMap}
+			}
+			return nil
+		},
+		Values: func(input gorgon.Instruction, output gorgon.Output) (reads []gorgon.KeyValueInt, writes []gorgon.KeyValueInt) {
+			switch instr := input.(type) {
+			case *generators.GetInstruction:
+				if i, ok := output.(int); ok {
+					return []gorgon.KeyValueInt{{Key: instr.Key, Value: i}}, nil
+				}
+			case *generators.SetInstruction:
+				if _, ok := output.(error); !ok {
+					return nil, []gorgon.KeyValueInt{{Key: instr.Key, Value: instr.Value}}
+				}
+			}
+			return nil, nil
+		},
+		ValuesOvewritten: func(state gorgon.State, input gorgon.Instruction, output gorgon.Output) []gorgon.KeyValueInt {
+			if _, ok := output.(error); ok {
+				return nil
+			}
+			if instr, ok := input.(*generators.SetInstruction); ok {
+				if i, ok := state.(gorgon.IntMap).Get(instr.Key); ok {
+					return []gorgon.KeyValueInt{{Key: instr.Key, Value: i}}
+				}
 			}
 			return nil
 		},
