@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 
-	"github.com/pavlosg/gorgon/src/gorgon/log"
+	"github.com/couchbaselabs/gorgon/src/gorgon/log"
 )
 
 type KillRpc struct{}

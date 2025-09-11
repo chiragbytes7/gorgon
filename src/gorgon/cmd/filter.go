@@ -3,7 +3,7 @@ package cmd
 import (
 	"strings"
 
-	"github.com/pavlosg/gorgon/src/gorgon/wildcard"
+	"github.com/couchbaselabs/gorgon/src/gorgon/wildcard"
 )
 
 type Filter struct {

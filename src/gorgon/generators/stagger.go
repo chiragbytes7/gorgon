@@ -4,8 +4,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/pavlosg/gorgon/src/gorgon"
-	"github.com/pavlosg/gorgon/src/gorgon/splitmix"
+	"github.com/couchbaselabs/gorgon/src/gorgon"
+	"github.com/couchbaselabs/gorgon/src/gorgon/splitmix"
 )
 
 func Stagger(gen gorgon.Generator, pace time.Duration) gorgon.Generator {

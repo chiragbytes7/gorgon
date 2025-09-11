@@ -1,4 +1,4 @@
-module github.com/pavlosg/gorgon/src/gorgon
+module github.com/couchbaselabs/gorgon/src/gorgon
 
 go 1.18
 

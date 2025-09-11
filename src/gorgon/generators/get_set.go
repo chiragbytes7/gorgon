@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/pavlosg/gorgon/src/gorgon"
-	"github.com/pavlosg/gorgon/src/gorgon/splitmix"
+	"github.com/couchbaselabs/gorgon/src/gorgon"
+	"github.com/couchbaselabs/gorgon/src/gorgon/splitmix"
 )
 
 type GetInstruction struct {

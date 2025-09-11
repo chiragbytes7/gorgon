@@ -1,10 +1,10 @@
-module github.com/pavlosg/gorgon/src/gorgon_couchbase
+module github.com/couchbaselabs/gorgon/src/gorgon_couchbase
 
 go 1.18
 
-require github.com/pavlosg/gorgon/src/gorgon v0.0.0
+require github.com/couchbaselabs/gorgon/src/gorgon v0.0.0
 
-replace github.com/pavlosg/gorgon/src/gorgon v0.0.0 => ../gorgon
+replace github.com/couchbaselabs/gorgon/src/gorgon v0.0.0 => ../gorgon
 
 require github.com/couchbase/gocb/v2 v2.8.1
 

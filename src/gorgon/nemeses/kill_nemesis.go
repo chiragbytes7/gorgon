@@ -5,10 +5,10 @@ import (
 	"net/rpc"
 	"time"
 
-	"github.com/pavlosg/gorgon/src/gorgon"
-	"github.com/pavlosg/gorgon/src/gorgon/jrpc"
-	"github.com/pavlosg/gorgon/src/gorgon/rpcs"
-	"github.com/pavlosg/gorgon/src/gorgon/splitmix"
+	"github.com/couchbaselabs/gorgon/src/gorgon"
+	"github.com/couchbaselabs/gorgon/src/gorgon/jrpc"
+	"github.com/couchbaselabs/gorgon/src/gorgon/rpcs"
+	"github.com/couchbaselabs/gorgon/src/gorgon/splitmix"
 )
 
 func NewKillNemesis(process string) gorgon.Generator {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/pavlosg/gorgon/src/gorgon"
+	"github.com/couchbaselabs/gorgon/src/gorgon"
 )
 
 func DescribeOperation(input gorgon.Instruction, output interface{}) string {

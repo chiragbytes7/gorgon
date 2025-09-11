@@ -3,7 +3,7 @@ package workloads
 import (
 	"sort"
 
-	"github.com/pavlosg/gorgon/src/gorgon"
+	"github.com/couchbaselabs/gorgon/src/gorgon"
 )
 
 func PartitionByKey(history []gorgon.Operation) (ret [][]gorgon.Operation) {

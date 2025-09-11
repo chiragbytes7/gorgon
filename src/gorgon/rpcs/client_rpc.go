@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/pavlosg/gorgon/src/gorgon"
-	"github.com/pavlosg/gorgon/src/gorgon/jrpc"
-	"github.com/pavlosg/gorgon/src/gorgon/log"
+	"github.com/couchbaselabs/gorgon/src/gorgon"
+	"github.com/couchbaselabs/gorgon/src/gorgon/jrpc"
+	"github.com/couchbaselabs/gorgon/src/gorgon/log"
 )
 
 func RegisterInstruction(instrunction gorgon.Instruction) {

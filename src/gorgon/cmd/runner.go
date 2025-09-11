@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/anishathalye/porcupine"
-	"github.com/pavlosg/gorgon/src/gorgon"
-	"github.com/pavlosg/gorgon/src/gorgon/log"
+	"github.com/couchbaselabs/gorgon/src/gorgon"
+	"github.com/couchbaselabs/gorgon/src/gorgon/log"
 )
 
 type Runner struct {

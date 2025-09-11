@@ -6,7 +6,7 @@ import (
 	"net/rpc/jsonrpc"
 	"time"
 
-	"github.com/pavlosg/gorgon/src/gorgon/log"
+	"github.com/couchbaselabs/gorgon/src/gorgon/log"
 )
 
 func Dial(address string, key []byte) (*rpc.Client, error) {

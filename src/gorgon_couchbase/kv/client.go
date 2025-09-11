@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/couchbase/gocb/v2"
-	"github.com/pavlosg/gorgon/src/gorgon"
-	"github.com/pavlosg/gorgon/src/gorgon/generators"
+	"github.com/couchbaselabs/gorgon/src/gorgon"
+	"github.com/couchbaselabs/gorgon/src/gorgon/generators"
 )
 
 func NewClient(id int, url, user, pass string) gorgon.Client {

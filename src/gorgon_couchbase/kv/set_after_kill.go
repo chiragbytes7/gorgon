@@ -1,9 +1,9 @@
 package kv
 
 import (
-	"github.com/pavlosg/gorgon/src/gorgon"
-	"github.com/pavlosg/gorgon/src/gorgon/generators"
-	"github.com/pavlosg/gorgon/src/gorgon/rpcs"
+	"github.com/couchbaselabs/gorgon/src/gorgon"
+	"github.com/couchbaselabs/gorgon/src/gorgon/generators"
+	"github.com/couchbaselabs/gorgon/src/gorgon/rpcs"
 )
 
 func NewSetAfterKillGenerator() gorgon.Generator {

@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pavlosg/gorgon/src/gorgon"
-	"github.com/pavlosg/gorgon/src/gorgon/jrpc"
-	"github.com/pavlosg/gorgon/src/gorgon/splitmix"
+	"github.com/couchbaselabs/gorgon/src/gorgon"
+	"github.com/couchbaselabs/gorgon/src/gorgon/jrpc"
+	"github.com/couchbaselabs/gorgon/src/gorgon/splitmix"
 )
 
 type PartitionNodeInstruction struct {

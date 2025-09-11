@@ -7,10 +7,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/pavlosg/gorgon/src/gorgon/cmd"
-	"github.com/pavlosg/gorgon/src/gorgon/generators"
-	"github.com/pavlosg/gorgon/src/gorgon/rpcs"
-	"github.com/pavlosg/gorgon/src/gorgon_couchbase/kv"
+	"github.com/couchbaselabs/gorgon/src/gorgon/cmd"
+	"github.com/couchbaselabs/gorgon/src/gorgon/generators"
+	"github.com/couchbaselabs/gorgon/src/gorgon/rpcs"
+	"github.com/couchbaselabs/gorgon/src/gorgon_couchbase/kv"
 )
 
 func main() {

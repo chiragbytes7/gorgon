@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/couchbase/gocb/v2"
-	"github.com/pavlosg/gorgon/src/gorgon"
-	"github.com/pavlosg/gorgon/src/gorgon/log"
-	"github.com/pavlosg/gorgon/src/gorgon/nemeses"
-	"github.com/pavlosg/gorgon/src/gorgon/rpcs"
-	"github.com/pavlosg/gorgon/src/gorgon/workloads"
+	"github.com/couchbaselabs/gorgon/src/gorgon"
+	"github.com/couchbaselabs/gorgon/src/gorgon/log"
+	"github.com/couchbaselabs/gorgon/src/gorgon/nemeses"
+	"github.com/couchbaselabs/gorgon/src/gorgon/rpcs"
+	"github.com/couchbaselabs/gorgon/src/gorgon/workloads"
 )
 
 type DatabaseConfig struct {

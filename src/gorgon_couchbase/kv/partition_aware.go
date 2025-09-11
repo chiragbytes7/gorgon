@@ -4,10 +4,10 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/pavlosg/gorgon/src/gorgon"
-	"github.com/pavlosg/gorgon/src/gorgon/generators"
-	"github.com/pavlosg/gorgon/src/gorgon/nemeses"
-	"github.com/pavlosg/gorgon/src/gorgon/splitmix"
+	"github.com/couchbaselabs/gorgon/src/gorgon"
+	"github.com/couchbaselabs/gorgon/src/gorgon/generators"
+	"github.com/couchbaselabs/gorgon/src/gorgon/nemeses"
+	"github.com/couchbaselabs/gorgon/src/gorgon/splitmix"
 )
 
 func NewPartitionAwareGetSetGenerator() gorgon.Generator {
