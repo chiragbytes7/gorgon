@@ -52,6 +52,8 @@ func (c *Cache) Contains(value any) bool {
 	return false
 }
 
+// Called when we want to insert a cache item into the cache
+// Returns true if the item was inserted, false if it was already in the cache
 func (c *Cache) Insert(value any) bool {
 	hash := c.hash(value)
 	b := c.bucket(hash)

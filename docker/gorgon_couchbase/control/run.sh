@@ -16,27 +16,36 @@ wait_for_node n2.local 9090
 NODES=${NODES:-'n0.local,n1.local,n2.local'}
 
 {
-    echo No durability
-    gorgon_couchbase -gorgon-nodes $NODES -gorgon-concurrency 8 run
+    # echo No durability
+    # gorgon_couchbase -gorgon-nodes $NODES -gorgon-concurrency 8 run
 
-    echo majorityPersistActive
+
+    echo majorityPersisActive
     gorgon_couchbase \
         -gorgon-nodes $NODES \
-        -gorgon-match '*~*~*' \
         -gorgon-concurrency 10 \
         -durability majorityPersistActive \
         -replicas 2 \
         run
 
-    echo majorityPersistActive client-over-rpc
-    gorgon_couchbase \
-        -gorgon-nodes $NODES \
-        -gorgon-match '*~*~*' \
-        -gorgon-concurrency 18 \
-        -durability majorityPersistActive \
-        -replicas 2 \
-        -client-over-rpc \
-        run
+    # echo majorityPersistActive
+    # gorgon_couchbase \
+    #     -gorgon-nodes $NODES \
+    #     -gorgon-match '*~*~*' \
+    #     -gorgon-concurrency 10 \
+    #     -durability majorityPersistActive \
+    #     -replicas 2 \
+    #     run
+
+    # echo majorityPersistActive client-over-rpc
+    # gorgon_couchbase \
+    #     -gorgon-nodes $NODES \
+    #     -gorgon-match '*~*~*' \
+    #     -gorgon-concurrency 18 \
+    #     -durability majorityPersistActive \
+    #     -replicas 2 \
+    #     -client-over-rpc \
+    #     run
 } 2>&1 | tee gorgon.log
 
 tar -czf files.tgz gorgon.log *.html
