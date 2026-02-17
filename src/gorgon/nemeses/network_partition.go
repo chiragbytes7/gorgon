@@ -55,6 +55,7 @@ func (*networkPartition) OnReturn(client int, instruction gorgon.Instruction, ou
 }
 
 func (nemesis *networkPartition) Next(client int) (gorgon.Instruction, error) {
+	// Nemesis instructions are issued only to the nemesis worker (client < 0)
 	if client >= 0 {
 		return nil, nil
 	}

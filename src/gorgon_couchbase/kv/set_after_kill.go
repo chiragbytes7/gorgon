@@ -18,10 +18,12 @@ type setAfterKillGenerator struct {
 	val    int
 }
 
+// Issue sets right after kill is requested
 func (gen *setAfterKillGenerator) Next(client int) (gorgon.Instruction, error) {
 	if gen.client != client || client < 0 {
 		return nil, nil
 	}
+	// Reset key when cycle completes to enable repeated stress testing
 	if gen.key >= len(gen.keys) {
 		gen.key = 0
 		return nil, nil
@@ -49,6 +51,7 @@ func (*setAfterKillGenerator) Invoke(instruction gorgon.Instruction, getTime fun
 	return -1, gorgon.ErrUnsupportedInstruction
 }
 
+// Start issuing sets after kill instruction
 func (gen *setAfterKillGenerator) OnCall(client int, instruction gorgon.Instruction) error {
 	if _, ok := instruction.(*rpcs.KillInstruction); ok && gen.client < 0 {
 		gen.client = 1
@@ -56,6 +59,7 @@ func (gen *setAfterKillGenerator) OnCall(client int, instruction gorgon.Instruct
 	return nil
 }
 
+// On ambiguous error, switch to another client to continue testing writes
 func (gen *setAfterKillGenerator) OnReturn(client int, instruction gorgon.Instruction, output gorgon.Output) error {
 	if _, ok := instruction.(*generators.SetInstruction); !ok {
 		return nil

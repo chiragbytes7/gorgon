@@ -8,6 +8,7 @@ import (
 
 func PartitionByKey(history []gorgon.Operation) (ret [][]gorgon.Operation) {
 	operations := make(map[string][]gorgon.Operation)
+	// Group operations by key; operations without keys are ignored
 	for _, op := range history {
 		instr, ok := op.Input.(interface{ GetKey() string })
 		if !ok {
@@ -16,6 +17,7 @@ func PartitionByKey(history []gorgon.Operation) (ret [][]gorgon.Operation) {
 		key := instr.GetKey()
 		operations[key] = append(operations[key], op)
 	}
+	// Convert map to list of partitions (ordered by key)
 	type keyOps struct {
 		key string
 		ops []gorgon.Operation

@@ -72,27 +72,25 @@ type State = any
 type Output = any
 
 type Model struct {
-	// Partition functions, such that a history is linearizable if and only
-	// if each partition is linearizable. If left nil, this package will
-	// skip partitioning.
+	// Partition operations, such that a history is linearizable if and only
+	// if each partition is linearizable.
 	Partition func(history []Operation) [][]Operation
 	// Initial state of the system.
 	Init func() []State
 	// Step function for the system. Returns all possible next states for
 	// the given state, input, and output. If the system cannot step with
 	// the given state/input to produce the given output, this function
-	// should return an empty slice.s
+	// should return an empty slice.
 	Step func(state State, input Instruction, output Output) []State
-	//
+	// Returns the values read/written to apply value-based heuristics
 	Values func(input Instruction, output Output) (reads []KeyValueInt, writes []KeyValueInt)
-	//
+	// Identify values overwritten by this operation for read-write constraint checking
 	ValuesOvewritten func(state State, input Instruction, output Output) []KeyValueInt
-	// Hash function on states.
+	// Hash state for efficient memoization of explored states
 	Hash func(state State) uint64
-	// Equality on states. If left nil, this package will use == as a
-	// fallback.
+	// Comparator for states
 	Equal func(state1, state2 State) bool
-	// For visualization, describe an operation as a string.
+	// For visualization purposes, describe an operation as a string.
 	DescribeOperation func(input Instruction, output Output) string
 	// For visualization purposes, describe a state as a string.
 	DescribeState func(state State) string

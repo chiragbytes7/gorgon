@@ -9,6 +9,7 @@ import (
 	"github.com/couchbaselabs/gorgon/src/gorgon/log"
 )
 
+// Client initiates authenticated connection to RPC server
 func Dial(address string, key []byte) (*rpc.Client, error) {
 	conn, err := net.DialTimeout("tcp", address, time.Minute)
 	if err != nil {
@@ -36,6 +37,7 @@ func Dial(address string, key []byte) (*rpc.Client, error) {
 	return jsonrpc.NewClient(buf), nil
 }
 
+// Server listens for connections; each connection runs in its own goroutine
 func Listen(address string, key []byte) error {
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
@@ -52,6 +54,7 @@ func Listen(address string, key []byte) error {
 	}
 }
 
+// HandleConnection authenticates client before serving RPC requests
 func handleConnection(conn net.Conn, key []byte) {
 	defer conn.Close()
 	log.Info("RPC accepted %v", conn.RemoteAddr())

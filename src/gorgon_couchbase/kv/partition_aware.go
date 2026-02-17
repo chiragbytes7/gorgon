@@ -29,14 +29,21 @@ func (gen *partitionAwareGenerator) Next(client int) (gorgon.Instruction, error)
 	if client < 0 || gen.numNodes == 0 || gen.node < 0 || time.Until(gen.start) > 0 {
 		return nil, nil
 	}
+
+	// Hash key to determine which node owns it; use vbucket for consistent sharding
 	key := gen.keys[gen.rand.Intn(len(gen.keys))]
 	vb := getVbid([]byte(key), 1024)
+
+	// Only generate operations for keys owned by the partitioned node
 	if vb < gen.node*1024/gen.numNodes || vb >= (gen.node+1)*1024/gen.numNodes {
 		return nil, nil
 	}
+
+	// Client bound to partitioned node reads to detect stale data
 	if client%gen.numNodes == gen.node {
 		return &generators.GetInstruction{Key: key}, nil
 	}
+
 	gen.val--
 	return &generators.SetInstruction{Key: key, Value: gen.val}, nil
 }
@@ -45,6 +52,7 @@ func (*partitionAwareGenerator) Name() string {
 	return "PartitionAwareGetSet"
 }
 
+// Initialize generator with unpartitioned state (-1)
 func (gen *partitionAwareGenerator) SetUp(opt *gorgon.Options) error {
 	gen.numNodes = len(opt.Nodes)
 	gen.node = -1
@@ -55,6 +63,7 @@ func (*partitionAwareGenerator) TearDown() error {
 	return nil
 }
 
+// Not called (instructions are handled by client); error for safety if invoked
 func (*partitionAwareGenerator) Invoke(instruction gorgon.Instruction, getTime func() int64) (int64, gorgon.Output) {
 	return -1, gorgon.ErrUnsupportedInstruction
 }
@@ -63,11 +72,13 @@ func (*partitionAwareGenerator) OnCall(client int, instruction gorgon.Instructio
 	return nil
 }
 
+// Track partition changes to determine target node for subsequent operations
 func (gen *partitionAwareGenerator) OnReturn(client int, instruction gorgon.Instruction, output gorgon.Output) error {
 	if instr, ok := instruction.(*nemeses.PartitionNodeInstruction); ok {
 		if instr.Heal {
 			gen.node = -1
 		} else {
+			// Wait 20 seconds after partition for failover to occur
 			gen.node = instr.Node
 			gen.start = time.Now().Add(20 * time.Second)
 		}

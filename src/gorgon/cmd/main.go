@@ -14,6 +14,7 @@ import (
 
 const exitUsage = 2
 
+// Entry point for Gorgon; delegates to either control node (run) or worker node (rpc) based on command
 func Main(db gorgon.Database) int {
 	var filter Filter
 	opt := &gorgon.Options{
@@ -21,8 +22,7 @@ func Main(db gorgon.Database) int {
 		Concurrency:      6,
 		RpcPort:          9090,
 	}
-	ret := parseOptions(opt, &filter)
-	if ret != 0 {
+	if ret := parseOptions(opt, &filter); ret != 0 {
 		return ret
 	}
 	if err := db.SetOptions(opt); err != nil {
@@ -43,10 +43,13 @@ func usage() int {
 	return exitUsage
 }
 
+// Execute all matching workloads in sequence, stopping on first failure
 func cmdRun(db gorgon.Database, opt *gorgon.Options, filter *Filter) int {
 	workloads := db.Workloads()
+	// Run each workload independently to isolate failures and verify consistency guarantees
 	for _, workload := range workloads {
 		runner := NewRunner(db, workload, opt)
+		// Skip workloads that don't match user-specified filter pattern
 		if !filter.Match(runner.Name()) {
 			continue
 		}
@@ -61,6 +64,7 @@ func cmdRun(db gorgon.Database, opt *gorgon.Options, filter *Filter) int {
 		if err := runner.TearDown(); err != nil {
 			log.Error("Error in Runner.TearDown: %v", err)
 		}
+		// Verify linearizability/ sequential consistency of observed operations
 		if err := runner.Check(history, ""); err != nil {
 			log.Error("Error in Runner.Check: %v", err)
 			return 1
@@ -69,6 +73,8 @@ func cmdRun(db gorgon.Database, opt *gorgon.Options, filter *Filter) int {
 	return 0
 }
 
+// Worker nodes run this RPC server to receive instruction invocations from control node
+// The server blocks indefinitely, handling database operations requested by the control node
 func cmdRpc(opt *gorgon.Options) int {
 	err := jrpc.Listen(fmt.Sprintf(":%v", opt.RpcPort), []byte(opt.RpcPassword))
 	if err != nil {
@@ -78,6 +84,7 @@ func cmdRpc(opt *gorgon.Options) int {
 	return 0
 }
 
+// Parse and validate command-line options; early validation prevents runtime errors
 func parseOptions(opt *gorgon.Options, filter *Filter) int {
 	matchPattern := "*"
 	excludePattern := ""
@@ -98,6 +105,7 @@ func parseOptions(opt *gorgon.Options, filter *Filter) int {
 		return usage()
 	}
 
+	// Skip command name (args[0]) to keep only workload-specific arguments
 	opt.Args = flag.Args()[1:]
 
 	*filter = MakeFilter(matchPattern, excludePattern)
@@ -105,10 +113,12 @@ func parseOptions(opt *gorgon.Options, filter *Filter) int {
 		fmt.Println("Invalid concurrency", opt.Concurrency)
 		return exitUsage
 	}
+	// Valid TCP port range is 1-65535
 	if opt.RpcPort <= 0 || opt.RpcPort >= (1<<16) {
 		fmt.Println("Invalid port", opt.RpcPort)
 		return exitUsage
 	}
+	// Minimum duration ensures sufficient interleaving for meaningful linearizability tests
 	if opt.WorkloadDuration < 10*time.Second {
 		fmt.Println("Minimum workload duration 10s")
 		return exitUsage
@@ -116,11 +126,13 @@ func parseOptions(opt *gorgon.Options, filter *Filter) int {
 
 	for _, node := range strings.Split(nodes, ",") {
 		node = strings.TrimSpace(node)
+		// Skip empty entries caused by trailing commas or extra spaces
 		if len(node) == 0 {
 			continue
 		}
 		opt.Nodes = append(opt.Nodes, node)
 	}
+	// At least one node is required for any meaningful distributed system test
 	if len(opt.Nodes) == 0 {
 		fmt.Println("Minimum one node")
 		return exitUsage

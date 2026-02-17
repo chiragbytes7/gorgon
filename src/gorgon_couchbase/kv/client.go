@@ -36,6 +36,7 @@ func (client *client) Id() int {
 	return client.id
 }
 
+// Establish Couchbase connection and validate cluster availability
 func (client *client) Open(config string) error {
 	if err := json.Unmarshal([]byte(config), &client.config); err != nil {
 		return err
@@ -46,6 +47,7 @@ func (client *client) Open(config string) error {
 			return errors.New("kv: invalid durability level in config")
 		}
 	}
+
 	cluster, err := gocb.Connect(client.url, gocb.ClusterOptions{
 		Username: client.user,
 		Password: client.pass,
@@ -53,11 +55,15 @@ func (client *client) Open(config string) error {
 	if err != nil {
 		return err
 	}
+
+	// Close connection if bucket initialization fails to avoid resource leaks
 	defer func() {
 		if client.cluster == nil {
 			cluster.Close(nil)
 		}
 	}()
+
+	// Wait for bucket before proceeding; operations would fail otherwise
 	bucket := cluster.Bucket("default")
 	err = bucket.WaitUntilReady(5*time.Second, nil)
 	if err != nil {

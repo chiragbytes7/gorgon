@@ -26,10 +26,12 @@ func main() {
 		ClientOverRpc: flag.Bool("client-over-rpc", false, "Use RPC for client operations"),
 	})
 
+	// Worker nodes must register RPC handlers before any calls can be served
 	rpc.Register(rpcs.NewClientRpc(db))
 	rpc.Register(&rpcs.IpTablesRpc{})
 	rpc.Register(&rpcs.KillRpc{})
 
+	// Register instruction types so they can be transmitted over RPC
 	rpcs.RegisterInstruction(&generators.GetInstruction{})
 	rpcs.RegisterInstruction(&generators.SetInstruction{})
 

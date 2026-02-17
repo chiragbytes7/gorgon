@@ -10,6 +10,7 @@ type Cache struct {
 	equal    func(a, b any) bool
 }
 
+// Create an LRU cache with capacity limit; min capacity is 2 for structural correctness
 func NewCache(maxCount int, hash func(any) uint64, equal func(a, b any) bool) *Cache {
 	if maxCount < 2 {
 		maxCount = 2
@@ -26,6 +27,7 @@ func (c *Cache) Len() int {
 	return c.count
 }
 
+// Reset cache to empty state; called when search completes to release memory
 func (c *Cache) Clear() {
 	for i := range c.table {
 		c.table[i] = nil
@@ -42,6 +44,7 @@ func (c *Cache) Clear() {
 	c.count = 0
 }
 
+// Cache lookups use hash table for O(1) average case performance
 func (c *Cache) Contains(value any) bool {
 	hash := c.hash(value)
 	for entry := c.table[c.bucket(hash)]; entry != nil; entry = entry.chainNext {
@@ -52,6 +55,7 @@ func (c *Cache) Contains(value any) bool {
 	return false
 }
 
+// Insert value into LRU cache; return false if already exists (just moved to front)
 func (c *Cache) Insert(value any) bool {
 	hash := c.hash(value)
 	b := c.bucket(hash)
@@ -91,6 +95,7 @@ func (c *Cache) Insert(value any) bool {
 	return true
 }
 
+// Evict least-recently-used entry to make space for a new one
 func (c *Cache) removeTail() *cacheEntry {
 	c.count--
 	tail := c.tail
@@ -112,6 +117,7 @@ func (c *Cache) removeTail() *cacheEntry {
 	panic("inconsistent cache state")
 }
 
+// LRU eviction policy: move accessed entry to front of queue
 func (c *Cache) bringToFront(entry *cacheEntry) {
 	if c.head != entry {
 		if c.tail == entry {
@@ -125,6 +131,7 @@ func (c *Cache) bringToFront(entry *cacheEntry) {
 	}
 }
 
+// Multiplicative hashing for uniform distribution; reduces collisions
 func (c *Cache) bucket(h uint64) int {
 	h = (h ^ (h >> 32)) * 0x5851f42d4c957f2d
 	h = (h ^ (h >> 32)) & 0xffffffff
@@ -139,6 +146,7 @@ type cacheEntry struct {
 	hash      uint64
 }
 
+// Remove entry from doubly-linked list
 func (e *cacheEntry) remove() {
 	prev := e.prev
 	next := e.next

@@ -14,6 +14,7 @@ import (
 	"github.com/couchbaselabs/gorgon/src/gorgon/log"
 )
 
+// Register instruction types for RPC deserialization; maps type name to reflect.Type
 func RegisterInstruction(instrunction gorgon.Instruction) {
 	rtype := reflect.TypeOf(instrunction)
 	for rtype.Kind() == reflect.Pointer {
@@ -30,18 +31,21 @@ func NewClientRpc(db gorgon.Database) *ClientRpc {
 	return &ClientRpc{db: db, clients: make(map[int]*lockableClient)}
 }
 
+// Server-side handler for client RPC calls; manages map of active client instances
 type ClientRpc struct {
 	db      gorgon.Database
 	clients map[int]*lockableClient
 	mutex   sync.Mutex
 }
 
+// Synchronized client wrapper; ensures thread-safety for concurrent RPC invocations
 type lockableClient struct {
 	client gorgon.Client
 	mutex  sync.Mutex
 }
 
 func (rpc *ClientRpc) OpenClient(arg *RpcOpenClient, reply *string) error {
+	// Protect concurrent access to the clients map
 	rpc.mutex.Lock()
 	defer rpc.mutex.Unlock()
 	if _, ok := rpc.clients[arg.Id]; ok {
@@ -129,6 +133,7 @@ func (rpc *ClientRpc) invoke(id int, instruction gorgon.Instruction) gorgon.Outp
 	return output
 }
 
+// Client-side proxy that forwards operations to remote worker node via RPC
 type clientOverRpc struct {
 	id     int
 	node   string
@@ -163,22 +168,29 @@ func (c *clientOverRpc) Close() error {
 }
 
 func (c *clientOverRpc) Invoke(instruction gorgon.Instruction, getTime func() int64) (retTime int64, output gorgon.Output) {
+	// Serialize instruction type and data for transmission
 	instructionJson, err := json.Marshal(instruction)
 	if err != nil {
 		log.Error("ClientOverRpc.Invoke: failed to marshal instruction %T", instruction)
 		return getTime(), errors.New("ClientOverRpc: failed to marshal instruction")
 	}
+
 	var reply RpcInvokeReply
+
+	// Extract fully-qualified type name for server-side deserialization
 	rtype := reflect.TypeOf(instruction)
 	for rtype.Kind() == reflect.Pointer {
 		rtype = rtype.Elem()
 	}
+
 	arg := RpcInvoke{Id: c.id, Instructon: rtype.PkgPath() + "." + rtype.Name(), Value: string(instructionJson)}
+
 	err = c.client.Call("ClientRpc.Invoke", &arg, &reply)
 	retTime = getTime()
 	if err != nil {
 		return retTime, err
 	}
+
 	switch reply.Type {
 	case "nil":
 		output = nil
@@ -217,4 +229,5 @@ type RpcInvokeReply struct {
 	Value string
 }
 
+// Maps instruction type names to their reflect.Type for RPC deserialization
 var instructions = make(map[string]reflect.Type)
