@@ -27,6 +27,8 @@ type DatabaseConfig struct {
 	Durability    *string
 	Timeout       *time.Duration
 	ClientOverRpc *bool
+	StorageEngine *string
+	Vbuckets      *int
 }
 
 func NewDatabase(config DatabaseConfig) gorgon.Database {
@@ -62,6 +64,8 @@ func (db *database) SetUp() error {
 	user := *db.config.User
 	pass := *db.config.Pass
 	replicas := *db.config.Replicas
+	storageEngine := *db.config.StorageEngine
+	vbuckets := *db.config.Vbuckets
 
 	for _, node := range opt.Nodes {
 		if err := db.httpPost(node, "controller/hardResetNode", nil); err != nil {
@@ -128,9 +132,10 @@ func (db *database) SetUp() error {
 	if err := db.httpPost(opt.Nodes[0], "pools/default/buckets", map[string]string{
 		"name":           "default",
 		"ramQuota":       "1024",
-		"storageBackend": "couchstore",
+		"storageBackend": storageEngine,
 		"evictionPolicy": "fullEviction",
 		"replicaNumber":  strconv.Itoa(replicas),
+		"numVBuckets":    strconv.Itoa(vbuckets),
 		"flushEnabled":   "1"}); err != nil {
 		return err
 	}

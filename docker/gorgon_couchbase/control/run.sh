@@ -19,13 +19,22 @@ NODES=${NODES:-'n0.local,n1.local,n2.local'}
     echo No durability
     gorgon_couchbase -gorgon-nodes $NODES -gorgon-concurrency 8 run
 
-    echo majorityPersistActive
+    echo 'majorityPersistActive - couchstore'
     gorgon_couchbase \
         -gorgon-nodes $NODES \
         -gorgon-match '*~*~*' \
         -gorgon-concurrency 10 \
         -durability majorityPersistActive \
         -replicas 2 \
+        run
+    echo 'majorityPersistActive - magma'
+    gorgon_couchbase \
+        -gorgon-nodes $NODES \
+        -gorgon-match '*~*~*' \
+        -gorgon-concurrency 10 \
+        -durability majorityPersistActive \
+        -replicas 2 \
+        -storage-engine magma \
         run
 
     echo majorityPersistActive client-over-rpc

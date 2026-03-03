@@ -24,6 +24,8 @@ func main() {
 		Durability:    flag.String("durability", "none", "Couchbase durability level"),
 		Timeout:       flag.Duration("timeout", 5*time.Second, "Couchbase operation timeout"),
 		ClientOverRpc: flag.Bool("client-over-rpc", false, "Use RPC for client operations"),
+		StorageEngine: flag.String("storage-engine", "couchstore", "Couchbase storage engine (couchstore/magma)"),
+		Vbuckets:      flag.Int("vbuckets", 1024, "Number of vbuckets for the bucket"),
 	})
 
 	// Worker nodes must register RPC handlers before any calls can be served
