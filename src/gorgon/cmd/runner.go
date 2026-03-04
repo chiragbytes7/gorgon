@@ -54,6 +54,17 @@ func (runner *Runner) SetUp() error {
 
 	// Pre-allocate slice for expected number of clients to avoid reallocations
 	clients := make([]gorgon.Client, concurrency)
+
+	// Teardown the db if in case setup happens only partially
+	defer func() {
+	if clients != nil {
+		if err := runner.db.TearDown(); err != nil {
+		log.Error("[%s] Error in Database.TearDown: %v", runner.name, err)
+	}
+	}
+}()
+
+	// Clean up clients on failure before they're transferred to runner.clients
 	defer func() {
 		for _, client := range clients {
 			if client != nil {
@@ -144,6 +155,7 @@ func (runner *Runner) Run() ([]gorgon.Operation, error) {
 	return operationList.Extract(), nil
 }
 
+// Database is shared across all workloads, so teardown happens once after all workloads complete
 func (runner *Runner) TearDown() (retErr error) {
 	for _, gen := range runner.workload.Generators {
 		if err := gen.TearDown(); err != nil {
@@ -162,6 +174,12 @@ func (runner *Runner) TearDown() (retErr error) {
 					retErr = err
 				}
 			}
+		}
+	}
+	if runner.options.CbcollectLogging {
+		err := runner.db.TearDown()
+		if err != nil {
+			log.Info("Error in calling DB's cbcollect_info teardown")
 		}
 	}
 	return
@@ -221,7 +239,7 @@ func (runner *Runner) Check(history []gorgon.Operation, dir string) (err error) 
 		log.Log(level, "[%s] Checked partition %d - %s", runner.name, i, result)
 	}
 
-	// Sequential consistency is a weaker guarantee; check when linearizability fails
+	// Sequential consistency is a weaker guarantee; verify it when linearizability fails
 	if !linearizable {
 		var hist [][]gorgon.Operation
 		for _, op := range history {
@@ -231,7 +249,6 @@ func (runner *Runner) Check(history []gorgon.Operation, dir string) (err error) 
 			hist[op.ClientId] = append(hist[op.ClientId], op)
 		}
 
-		// Run the check for sequential consistency
 		result, info := CheckSeqnuentialConsistency(model, hist, time.Minute)
 		level := log.INFO
 		if result != checkers.Ok {
@@ -376,3 +393,4 @@ func (w *worker) onReturn(client int, instruction gorgon.Instruction, output gor
 	}
 	return nil
 }
+

@@ -26,6 +26,8 @@ NODES=${NODES:-'n0.local,n1.local,n2.local'}
         -gorgon-concurrency 10 \
         -durability majorityPersistActive \
         -replicas 2 \
+        -gorgon-cbcollect-log \
+        -gorgon-network-capture \
         run
     echo 'majorityPersistActive - magma'
     gorgon_couchbase \

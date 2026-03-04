@@ -9,13 +9,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+	"errors"
 	"github.com/couchbase/gocb/v2"
 	"github.com/couchbaselabs/gorgon/src/gorgon"
 	"github.com/couchbaselabs/gorgon/src/gorgon/log"
 	"github.com/couchbaselabs/gorgon/src/gorgon/nemeses"
 	"github.com/couchbaselabs/gorgon/src/gorgon/rpcs"
 	"github.com/couchbaselabs/gorgon/src/gorgon/workloads"
+	"github.com/couchbaselabs/gorgon/src/gorgon/jrpc"
 )
 
 // Flags initialized in main.go
@@ -66,6 +67,13 @@ func (db *database) SetUp() error {
 	replicas := *db.config.Replicas
 	storageEngine := *db.config.StorageEngine
 	vbuckets := *db.config.Vbuckets
+
+	if opt.NetworkTraceCapture {
+		err := db.NetworkTraceCapture()
+		if err != nil {
+			return err 
+		}
+	}
 
 	for _, node := range opt.Nodes {
 		if err := db.httpPost(node, "controller/hardResetNode", nil); err != nil {
@@ -146,7 +154,16 @@ func (db *database) SetUp() error {
 	return nil
 }
 
+// We will have to write the logic for cb collects here
 func (db *database) TearDown() error {
+	if db.options.NetworkTraceCapture {
+		if err := db.StopNetworkCapture(); err != nil {
+			log.Error("Error stopping network capture: %v", err)
+		}
+	}
+	if db.options.CbcollectLogging {
+		return db.CbCollectLogging()
+	}
 	return nil
 }
 
@@ -239,6 +256,96 @@ func (db *database) ClientConfig() string {
 		panic(err)
 	}
 	return string(configJson)
+}
+
+func (db *database) CbCollectLogging() error {
+	// Flag to track if atleast one node successfully created a client 
+	anySuccess := false
+	var err error
+	// Iterate over all nodes to create rpc clients 
+	for _, node := range db.options.Nodes { 
+		client, dialErr := jrpc.Dial(
+			fmt.Sprintf("%s:%d", node, db.options.RpcPort),
+			[]byte(db.options.RpcPassword),
+		)
+		if dialErr != nil {
+			log.Error("Client for cbcollect_info logging rpc on (%s) could not be created", node)
+			continue
+		}
+		anySuccess = true 
+		// Passing the directory location and the required arguments to the rpc call 
+		outputPath := db.options.LogDirectory
+		var reply string
+		err = client.Call("CbcollectRpc.CbCollectLogs", &outputPath, &reply)
+		if err != nil {
+			log.Error("cbcollect_info command on (%s) could not be invoked", node)
+		}
+		client.Close()
+	}
+	// This block runs when the logging did not succeed on any of the worker nodes 
+	if !anySuccess && err == nil {
+		err = errors.New("Failed to initiate logging on any node as rpc clients could not be created")
+	}
+	return err
+}
+
+
+func (db *database) NetworkTraceCapture() error {
+	// Flag to track if atleast one node successfully created a client
+	anySuccess := false
+	var err error
+	// Iterate over all nodes to create rpc clients
+	for _, node := range db.options.Nodes { 
+		client, dialErr := jrpc.Dial(
+			fmt.Sprintf("%s:%d", node, db.options.RpcPort),
+			[]byte(db.options.RpcPassword),
+		)
+		if dialErr != nil {
+			log.Error("Client for network trace capture rpc on (%s) could not be created", node)
+			continue
+		}
+		anySuccess = true 
+		// Passing the directory location and the required arguments to the rpc call 
+		outputPath := db.options.LogDirectory
+		var reply string
+		err = client.Call("NetworkTraceRpc.CaptureTrace", &outputPath, &reply)
+		if err != nil {
+			log.Error("network trace command on (%s) could not be invoked", node)
+		}
+		client.Close()
+	}
+	// This block runs when the logging did not succeed on any of the worker nodes
+	if !anySuccess && err == nil {
+		err = errors.New("Failed to initiate logging on any node as rpc clients could not be created")
+	}
+	return err
+}
+
+func (db *database) StopNetworkCapture() error {
+	var err error  
+	anySuccess := false
+	for _, node := range db.options.Nodes {
+		client, dialErr := jrpc.Dial(
+			fmt.Sprintf("%s:%d", node, db.options.RpcPort),
+			[]byte(db.options.RpcPassword),
+		)
+		if dialErr != nil {
+			log.Error("Client for network trace capture stop rpc on (%s) could not be created", node)
+			continue
+		}
+		anySuccess = true 
+		emptyStr := ""
+		var reply string 
+		err = client.Call("NetworkTraceRpc.StopCapture", &emptyStr, &reply)
+		if err != nil {
+			log.Error("network trace stop command on (%s) could not be invoked", node)
+		}
+		client.Close()
+	}
+	if !anySuccess && err == nil {
+		err = errors.New("Failed to terminate tshark on any node as rpc clients could not be created")
+	} 
+	return err
 }
 
 func (db *database) Workloads() []gorgon.Workload {

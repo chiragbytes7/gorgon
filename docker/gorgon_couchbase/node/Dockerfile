@@ -3,7 +3,10 @@ FROM ubuntu:24.04
 ENV LANG=C.UTF-8
 
 RUN apt-get -qy update \
-    && apt-get -qy install curl golang-go iptables netcat-openbsd procps python3 sudo tar unzip wget g++ cmake libfuse3-dev libfuse3-3 fuse3 git
+    && apt-get -qy install curl golang-go iptables netcat-openbsd procps python3 sudo tar unzip wget g++ cmake libfuse3-dev libfuse3-3 fuse3 git 
+
+RUN apt-get -qy update
+RUN apt-get -qy install tshark
 
 #setting the directory for installation of lazyfs 
 WORKDIR /opt
@@ -28,6 +31,10 @@ RUN sed -i 's|^logfile=""|logfile="/tmp/lazyfs.log"|' /opt/lazyfs/lazyfs/config/
 RUN sed -i 's|log_all_operations=false|log_all_operations=true|' /opt/lazyfs/lazyfs/config/default.toml
 RUN sed -i 's/^#fifo_path_completed=/fifo_path_completed=/' /opt/lazyfs/lazyfs/config/default.toml
 
+
+# Create a directory to store cbcollect logs and wireshark captures
+WORKDIR /opt
+RUN mkdir cbcollects_and_captures
 
 #running the build commands for lazyfs 
 WORKDIR /opt/lazyfs

@@ -32,6 +32,9 @@ func main() {
 	rpc.Register(rpcs.NewClientRpc(db))
 	rpc.Register(&rpcs.IpTablesRpc{})
 	rpc.Register(&rpcs.KillRpc{})
+	rpc.Register(&rpcs.LazyFsRpc{})
+	rpc.Register(&rpcs.CbcollectRpc{})
+	rpc.Register(&rpcs.NetworkTraceRpc{})
 
 	// Register instruction types so they can be transmitted over RPC
 	rpcs.RegisterInstruction(&generators.GetInstruction{})
