@@ -41,10 +41,18 @@ func (runner *Runner) Name() string {
 	return runner.name
 }
 
-// This function prepares the Runner by setting up the database,
-// creating clients, and setting up the workload generators.
 func (runner *Runner) SetUp() error {
 	log.Info("[%s] Database SetUp", runner.name)
+	var setupComplete bool // To guard the defer
+	defer func() {         // Tears down runner's db if partial setup
+		if !setupComplete {
+			err := runner.db.TearDown()
+			if err != nil {
+				log.Error("[%s] Error in database teardown: %v", runner.name, err)
+			}
+		}
+	}()
+
 	// Initialize the database before any client connections can be established
 	if err := runner.db.SetUp(); err != nil {
 		return err
@@ -58,14 +66,6 @@ func (runner *Runner) SetUp() error {
 		for _, client := range clients {
 			if client != nil {
 				client.Close()
-			}
-		}
-	}()
-	// Teardown the db if in case setup happens only partially
-	defer func() {
-		if clients != nil {
-			if err := runner.db.TearDown(); err != nil {
-				log.Error("[%s] Error in Database.TearDown: %v", runner.name, err)
 			}
 		}
 	}()
@@ -97,6 +97,7 @@ func (runner *Runner) SetUp() error {
 	// Transfer ownership to runner struct; clearing local variable prevents defer from closing valid clients
 	runner.clients = clients
 	clients = nil
+	setupComplete = true
 	return nil
 }
 
@@ -144,6 +145,7 @@ func (runner *Runner) Run() ([]gorgon.Operation, error) {
 	return operationList.Extract(), nil
 }
 
+// Database is shared across all workloads, so teardown happens once after all workloads complete
 func (runner *Runner) TearDown() (retErr error) {
 	for _, gen := range runner.workload.Generators {
 		if err := gen.TearDown(); err != nil {
@@ -163,6 +165,10 @@ func (runner *Runner) TearDown() (retErr error) {
 				}
 			}
 		}
+	}
+	err := runner.db.TearDown()
+	if err != nil && retErr == nil {
+		retErr = err
 	}
 	return
 }
@@ -221,7 +227,7 @@ func (runner *Runner) Check(history []gorgon.Operation, dir string) (err error) 
 		log.Log(level, "[%s] Checked partition %d - %s", runner.name, i, result)
 	}
 
-	// Sequential consistency is a weaker guarantee; check when linearizability fails
+	// Sequential consistency is a weaker guarantee; verify it when linearizability fails
 	if !linearizable {
 		var hist [][]gorgon.Operation
 		for _, op := range history {
@@ -231,7 +237,6 @@ func (runner *Runner) Check(history []gorgon.Operation, dir string) (err error) 
 			hist[op.ClientId] = append(hist[op.ClientId], op)
 		}
 
-		// Run the check for sequential consistency
 		result, info := CheckSeqnuentialConsistency(model, hist, time.Minute)
 		level := log.INFO
 		if result != checkers.Ok {
