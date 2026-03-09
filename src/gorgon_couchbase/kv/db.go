@@ -18,6 +18,7 @@ import (
 	"github.com/couchbaselabs/gorgon/src/gorgon/workloads"
 )
 
+// Flags initialized in main.go
 type DatabaseConfig struct {
 	User          *string
 	Pass          *string
@@ -94,17 +95,7 @@ func (db *database) SetUp() error {
 			return err
 		}
 	}
-	var knownNodes strings.Builder
-	for i, node := range opt.Nodes {
-		if i == 0 {
-			knownNodes.WriteString("ns_1@")
-		} else {
-			knownNodes.WriteString(",ns_1@")
-		}
-		knownNodes.WriteString(node)
-	}
-	if err := db.httpPost(opt.Nodes[0], "controller/rebalance", map[string]string{
-		"knownNodes": knownNodes.String()}); err != nil {
+	if err := db.rebalance(db.options.Nodes, nil); err != nil {
 		return err
 	}
 	// Wait for rebalance to complete
@@ -150,6 +141,25 @@ func (db *database) SetUp() error {
 
 func (db *database) TearDown() error {
 	return nil
+}
+
+func (db *database) rebalance(known, ejected []string) error {
+	return db.httpPost(db.options.Nodes[0], "controller/rebalance", map[string]string{
+		"knownNodes":   formatOtpNodes(known),
+		"ejectedNodes": formatOtpNodes(ejected)})
+}
+
+func formatOtpNodes(nodes []string) string {
+	var builder strings.Builder
+	for i, node := range nodes {
+		if i == 0 {
+			builder.WriteString("ns_1@")
+		} else {
+			builder.WriteString(",ns_1@")
+		}
+		builder.WriteString(node)
+	}
+	return builder.String()
 }
 
 func (db *database) httpGet(node, endpoint string) ([]byte, error) {
@@ -221,8 +231,14 @@ func (db *database) ClientConfig() string {
 
 func (db *database) Workloads() []gorgon.Workload {
 	return []gorgon.Workload{
+		// Basic workload with getset instruction
 		workloads.GetSetWorkload(),
+		// Workload with Kill nemesis to kill memcached process
 		workloads.GetSetWorkload().Add(nemeses.NewKillNemesis("memcached")).Add(NewSetAfterKillGenerator()),
+		// Partition the cluster, but don't block the web UI port
 		workloads.GetSetWorkload().Add(nemeses.NewNetworkPartitionNemesis(8091)).Add(NewPartitionAwareGetSetGenerator()),
+		// Workload to failover (hard or graceful) and recover (full or delta)
+		workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Graceful", "Full")),
+		workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Hard", "Full")),
 	}
 }
