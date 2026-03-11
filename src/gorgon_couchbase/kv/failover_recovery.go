@@ -2,6 +2,7 @@ package kv
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/couchbaselabs/gorgon/src/gorgon"
@@ -42,6 +43,7 @@ type failoverAndRecovery struct {
 	recoveryType string
 	node         string
 	nodeIdx      int
+	apiNode      string
 	failedOver   bool
 	recovered    bool
 	failoverTime time.Time
@@ -88,6 +90,13 @@ func (nemesis *failoverAndRecovery) SetUp(opt *gorgon.Options) error {
 	nemesis.node = opt.Nodes[nemesis.nodeIdx]
 	nemesis.failoverTime = now.Add(opt.WorkloadDuration / 4)
 	nemesis.recoveryTime = now.Add(opt.WorkloadDuration * 3 / 4)
+	// Node to make rest API requests to
+	for _, node := range nemesis.db.options.Nodes {
+		if node != nemesis.node {
+			nemesis.apiNode = node
+			break
+		}
+	}
 	return nil
 }
 
@@ -109,14 +118,14 @@ func (nemesis *failoverAndRecovery) Invoke(instruction gorgon.Instruction, getTi
 func (nemesis *failoverAndRecovery) invokeFailover(instr *FailoverInstruction, getTime func() int64) (int64, gorgon.Output) {
 	switch instr.FailoverType {
 	case "Hard":
-		err := nemesis.db.httpPost(nemesis.node, "controller/failOver", map[string]string{
+		err := nemesis.db.httpPost(nemesis.apiNode, "controller/failOver", map[string]string{
 			"otpNode":     "ns_1@" + nemesis.node,
 			"allowUnsafe": "false"})
 		if err != nil {
 			return getTime(), err
 		}
 	case "Graceful":
-		err := nemesis.db.httpPost(nemesis.node, "controller/startGracefulFailover", map[string]string{
+		err := nemesis.db.httpPost(nemesis.apiNode, "controller/startGracefulFailover", map[string]string{
 			"otpNode": "ns_1@" + nemesis.node})
 		if err != nil {
 			return getTime(), err
@@ -128,6 +137,29 @@ func (nemesis *failoverAndRecovery) invokeFailover(instr *FailoverInstruction, g
 }
 
 func (nemesis *failoverAndRecovery) invokeRecovery(instr *RecoveryInstruction, getTime func() int64) (int64, gorgon.Output) {
-	// TODO
+	if instr.RecoveryType != "Full" && instr.RecoveryType != "Delta" {
+		return getTime(), errors.New("invalid recovery type: " + instr.RecoveryType)
+	}
+	err := nemesis.requestRecovery(instr.RecoveryType)
+	if err != nil {
+		return getTime(), err
+	}
+	// Rebalance after failover to complete the recovery process
+	err = nemesis.db.rebalance(nemesis.apiNode, nemesis.db.options.Nodes, nil)
+	if err != nil {
+		return getTime(), err
+	}
+	// Polling to check if rebalance process is complete
+	if err := nemesis.db.waitForRebalance(nemesis.apiNode); err != nil {
+		return getTime(), err
+	}
 	return getTime(), nil
+}
+
+func (nemesis *failoverAndRecovery) requestRecovery(recoveryType string) error {
+	err := nemesis.db.httpPost(nemesis.apiNode, "controller/setRecoveryType", map[string]string{
+		"otpNode":      "ns_1@" + nemesis.node,
+		"recoveryType": strings.ToLower(recoveryType),
+	})
+	return err
 }

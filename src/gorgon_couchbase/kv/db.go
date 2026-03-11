@@ -99,30 +99,14 @@ func (db *database) SetUp() error {
 			return err
 		}
 	}
-	if err := db.rebalance(db.options.Nodes, nil); err != nil {
+	if err := db.rebalance(db.options.Nodes[0], db.options.Nodes, nil); err != nil {
 		return err
 	}
 	// Wait for rebalance to complete
-	for {
-		time.Sleep(time.Second)
-		bytes, err := db.httpGet(opt.Nodes[0], "pools/default/rebalanceProgress")
-		if err != nil {
-			return err
-		}
-		obj := make(map[string]interface{})
-		if err := json.Unmarshal(bytes, &obj); err != nil {
-			return fmt.Errorf("kv: cannot parse rebalance progress: %v", err)
-		}
-		status, ok := obj["status"].(string)
-		if !ok {
-			return fmt.Errorf("kv: cannot find rebalance status in %s", string(bytes))
-		}
-		if status == "none" {
-			log.Info("Rebalance completed")
-			break
-		}
-		log.Info("Rebalance in progress: %s", string(bytes))
+	if err := db.waitForRebalance(db.options.Nodes[0]); err != nil {
+		return err
 	}
+
 	if err := db.httpPost(opt.Nodes[0], "settings/autoFailover", map[string]string{
 		"enabled":                            "true",
 		"timeout":                            "15",
@@ -148,10 +132,34 @@ func (db *database) TearDown() error {
 	return nil
 }
 
-func (db *database) rebalance(known, ejected []string) error {
-	return db.httpPost(db.options.Nodes[0], "controller/rebalance", map[string]string{
+func (db *database) rebalance(apiNode string, known, ejected []string) error {
+	return db.httpPost(apiNode, "controller/rebalance", map[string]string{
 		"knownNodes":   formatOtpNodes(known),
 		"ejectedNodes": formatOtpNodes(ejected)})
+}
+
+func (db *database) waitForRebalance(apiNode string) error {
+	for {
+		time.Sleep(time.Second)
+		bytes, err := db.httpGet(apiNode, "pools/default/rebalanceProgress")
+		if err != nil {
+			return err
+		}
+		obj := make(map[string]interface{})
+		if err := json.Unmarshal(bytes, &obj); err != nil {
+			return fmt.Errorf("kv: cannot parse rebalance progress: %v", err)
+		}
+		status, ok := obj["status"].(string)
+		if !ok {
+			return fmt.Errorf("kv: cannot find rebalance status in %s", string(bytes))
+		}
+		if status == "none" {
+			log.Info("Rebalance completed")
+			break
+		}
+		log.Info("Rebalance in progress: %s", string(bytes))
+	}
+	return nil
 }
 
 func formatOtpNodes(nodes []string) string {
