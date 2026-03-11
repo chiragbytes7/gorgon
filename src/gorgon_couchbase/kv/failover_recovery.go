@@ -115,11 +115,20 @@ func (nemesis *failoverAndRecovery) invokeFailover(instr *FailoverInstruction, g
 		if err != nil {
 			return getTime(), err
 		}
+		err = nemesis.requestRebalance()
+		if err != nil {
+			return getTime(), err 
+		}
 	case "Graceful":
 		err := nemesis.db.httpPost(nemesis.node, "controller/startGracefulFailover", map[string]string{
 			"otpNode": "ns_1@" + nemesis.node})
 		if err != nil {
 			return getTime(), err
+		}
+		// Rebalance to restore balanced replica requirements 
+		err = nemesis.requestRebalance()
+		if err != nil {
+			return getTime(), err 
 		}
 	default:
 		return getTime(), errors.New("invalid failover type: " + instr.FailoverType)
@@ -128,6 +137,39 @@ func (nemesis *failoverAndRecovery) invokeFailover(instr *FailoverInstruction, g
 }
 
 func (nemesis *failoverAndRecovery) invokeRecovery(instr *RecoveryInstruction, getTime func() int64) (int64, gorgon.Output) {
-	// TODO
+	if instr.RecoveryType != "full" && instr.RecoveryType != "delta" {
+		return getTime(), errors.New("invalid recovery type: " + instr.RecoveryType)
+	}
+	err := nemesis.requestRecovery(instr.RecoveryType)
+	if err != nil {
+		return getTime(), err 
+	}
+	// Rebalance after failover to complete the recovery process 
+	err = nemesis.requestRebalance()
+	if err != nil {
+		return getTime(), err 
+	}
 	return getTime(), nil
+}
+
+func (nemesis *failoverAndRecovery) requestRecovery(recoveryType string) error {
+		err := nemesis.db.httpPost(nemesis.node, "/controller/setRecoveryType", map[string]string{
+			"otpNode": "ns_1@" + nemesis.node,
+			"recoveryType": recoveryType,
+		})
+		return err 
+}
+
+func (nemesis *failoverAndRecovery) requestRebalance() error {
+	var nodeToRequest string
+	// Choose the first node that is not failed-over 
+	for _, node := range nemesis.db.options.Nodes {
+		if node != nemesis.node {
+			nodeToRequest = node 
+			break
+		}
+	}
+	return nemesis.db.httpPost(nodeToRequest, "controller/rebalance", map[string]string{
+		"knownNodes":   formatOtpNodes(nemesis.db.options.Nodes),
+	})
 }
