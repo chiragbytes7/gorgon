@@ -15,6 +15,11 @@ import (
 	"github.com/couchbaselabs/gorgon/src/gorgon/log"
 )
 
+var (
+	linearizabilityErr = errors.New("Linearizability check failed")
+	sequentialErr      = errors.New("Sequential consistency check failed")
+)
+
 type Runner struct {
 	name     string
 	db       gorgon.Database
@@ -215,6 +220,9 @@ func (runner *Runner) Check(history []gorgon.Operation, dir string) (err error) 
 		level := log.INFO
 		// Save visualization for failed checks to help developers debug the violation
 		if result != porcupine.Ok {
+			if err == nil && runner.options.ErrOnTestFail == "linearizability" {
+				err = linearizabilityErr
+			}
 			linearizable = false
 			level = log.WARNING
 			filePath := path.Join(dir, EscapeFileName(fmt.Sprintf(
@@ -240,6 +248,9 @@ func (runner *Runner) Check(history []gorgon.Operation, dir string) (err error) 
 		result, info := CheckSeqnuentialConsistency(model, hist, time.Minute)
 		level := log.INFO
 		if result != checkers.Ok {
+			if err == nil && runner.options.ErrOnTestFail == "sequential" {
+				err = sequentialErr
+			}
 			level = log.WARNING
 		}
 		filePath := path.Join(dir, EscapeFileName(fmt.Sprintf(

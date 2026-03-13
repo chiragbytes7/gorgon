@@ -131,6 +131,7 @@ func parseOptions(opt *gorgon.Options, filter *Filter) int {
 	flag.BoolVar(&opt.CbcollectLogging, "gorgon-cbcollect-log", false, "boolean to enable cbcollect logs")
 	flag.BoolVar(&opt.NetworkTraceCapture, "gorgon-network-capture", false, "boolean to enable network trace capture")
 	flag.StringVar(&opt.LogDirectory, "gorgon-log-directory", "/root/store/cbcollects_and_captures/", "Path for cbcollect log zip file")
+	flag.StringVar(&opt.ErrOnTestFail, "gorgon-err-on-test-fail", "", "Consistency level that triggers a test failure error: linearizability or sequential")
 
 	flag.Parse()
 	if flag.NArg() == 0 {

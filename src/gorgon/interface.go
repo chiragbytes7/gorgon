@@ -60,6 +60,7 @@ type Options struct {
 	LogDirectory            string
 	CbcollectLogging        bool
 	NetworkTraceCapture     bool
+	ErrOnTestFail           string
 }
 
 type Operation struct {
