@@ -29,6 +29,7 @@ func main() {
 	})
 
 	// Worker nodes must register RPC handlers before any calls can be served
+	rpc.Register(&rpcs.CloseRpcServerRpc{})
 	rpc.Register(rpcs.NewClientRpc(db))
 	rpc.Register(&rpcs.IpTablesRpc{})
 	rpc.Register(&rpcs.KillRpc{})

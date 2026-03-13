@@ -25,5 +25,7 @@ done
 
 tar -czf files.tgz gorgon.log *.html
 
+gorgon_couchbase -gorgon-nodes $NODES closerpc
+
 echo
 echo DONE
