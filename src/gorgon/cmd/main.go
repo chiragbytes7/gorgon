@@ -34,12 +34,14 @@ func Main(db gorgon.Database) int {
 		return cmdRun(db, opt, &filter)
 	case "rpc":
 		return cmdRpc(opt)
+	case "closerpc":
+		return cmdCloseRpc(opt)
 	}
 	return usage()
 }
 
 func usage() int {
-	fmt.Println("Usage:", os.Args[0], "[options] run|rpc [args...]")
+	fmt.Println("Usage:", os.Args[0], "[options] run|rpc|closerpc [args...]")
 	return exitUsage
 }
 
@@ -74,12 +76,36 @@ func cmdRun(db gorgon.Database, opt *gorgon.Options, filter *Filter) int {
 }
 
 // Worker nodes run this RPC server to receive instruction invocations from control node
-// The server blocks indefinitely, handling database operations requested by the control node
 func cmdRpc(opt *gorgon.Options) int {
 	err := jrpc.Listen(fmt.Sprintf(":%v", opt.RpcPort), []byte(opt.RpcPassword))
+	// If the listener closed due to an error
 	if err != nil {
 		log.Error("rpc: %v", err)
 		return 1
+	}
+	// If the listener was closed gracefully
+	log.Info("RPC server shutting down gracefully")
+	return 0
+}
+
+func cmdCloseRpc(opt *gorgon.Options) int {
+	for _, node := range opt.Nodes {
+		client, err := jrpc.Dial(fmt.Sprintf("%s:%d", node, opt.RpcPort), []byte(opt.RpcPassword))
+		if err != nil {
+			log.Error("Failed to connect to %s for shutdown: %v", node, err)
+			return 1
+		}
+		var emptyString string
+		var reply string
+		err = client.Call("CloseRpcServerRpc.Shutdown", &emptyString, &reply)
+		if err != nil {
+			log.Error("Failed to shutdown RPC server on %s: %v", node, err)
+			return 1
+		}
+		if err = client.Close(); err != nil {
+			log.Error("Failed to close RPC client for %s: %v", node, err)
+			return 1
+		}
 	}
 	return 0
 }
