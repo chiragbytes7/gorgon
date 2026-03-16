@@ -1,6 +1,6 @@
 MODULE_FILES = $(shell echo ../../src/*/go.mod ../../src/*/go.sum)
 
-all: compose.yaml control/src.tgz node/src.tgz control/deps.tgz node/deps.tgz
+all: compose.yaml control/src.tgz node/src.tgz control/deps.tgz node/deps.tgz node/override.tgz
 
 control/src.tgz: node/src.tgz
 	cp $< $@
@@ -19,6 +19,9 @@ compose.yaml: compose.control.yaml compose.node.yaml compose.py
 
 build: all
 	docker compose -f compose.yaml build
+
+node/override.tgz : $(shell find ../../override)
+	tar -czf $@ -C ../.. override 
 
 clean:
 	rm */*.tgz

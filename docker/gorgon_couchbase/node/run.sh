@@ -8,6 +8,7 @@ wait_for_node() {
     until nc -q 1 "$1" "$2" < /dev/null ; do sleep 1 ; done
 }
 
+export LD_PRELOAD=/override/libfdatasync.so
 couchbase-server --start
 
 wait_for_node localhost 8091

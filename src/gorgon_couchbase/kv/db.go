@@ -245,5 +245,7 @@ func (db *database) Workloads() []gorgon.Workload {
 		// Workload to failover (hard or graceful) and recover (full or delta)
 		workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Graceful", "Full")),
 		workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Hard", "Full")),
+		// Workload to test out the disk full injection layer
+		workloads.GetSetWorkload().Add(nemeses.NewOutOfStorageNemesis()),
 	}
 }
