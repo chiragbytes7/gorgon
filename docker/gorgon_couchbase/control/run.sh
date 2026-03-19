@@ -9,11 +9,10 @@ wait_for_node() {
     until nc -q 1 "$1" "$2" < /dev/null ; do sleep 1 ; done
 }
 
-wait_for_node n0.local 9090
-wait_for_node n1.local 9090
-wait_for_node n2.local 9090
-
-export NODES=${NODES:-'n0.local,n1.local,n2.local'}
+echo "Nodes: $NODES"
+for node in ${NODES//,/ } ; do
+    wait_for_node $node 9090
+done
 
 {
     for workload in /workloads/*.sh ; do
