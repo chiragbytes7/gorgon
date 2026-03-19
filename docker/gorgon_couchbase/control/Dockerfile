@@ -2,8 +2,8 @@ FROM ubuntu:24.04
 
 ENV LANG=C.UTF-8
 
-RUN apt-get -qy update
-RUN apt-get -qy install curl golang-go netcat-openbsd python3 sudo tar unzip wget
+RUN apt-get -y update && apt-get -y install \
+    curl golang-go netcat-openbsd python3 sudo tar unzip wget
 
 RUN mkdir /root/deps && mkdir /workloads
 ADD deps.tgz /root/deps
