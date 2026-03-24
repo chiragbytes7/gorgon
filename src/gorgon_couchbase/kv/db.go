@@ -236,16 +236,18 @@ func (db *database) ClientConfig() string {
 
 func (db *database) Workloads() []gorgon.Workload {
 	return []gorgon.Workload{
-		// Basic workload with getset instruction
-		workloads.GetSetWorkload(),
-		// Workload with Kill nemesis to kill memcached process
-		workloads.GetSetWorkload().Add(nemeses.NewKillNemesis("memcached")).Add(NewSetAfterKillGenerator()),
-		// Partition the cluster, but don't block the web UI port
-		workloads.GetSetWorkload().Add(nemeses.NewNetworkPartitionNemesis(8091)).Add(NewPartitionAwareGetSetGenerator()),
-		// Workload to failover (hard or graceful) and recover (full or delta)
-		workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Graceful", "Full")),
-		workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Hard", "Full")),
-		// Workload to test out the disk full injection layer
-		workloads.GetSetWorkload().Add(nemeses.NewOutOfStorageNemesis()),
+		// // Basic workload with getset instruction
+		// workloads.GetSetWorkload(),
+		// // Workload with Kill nemesis to kill memcached process
+		// workloads.GetSetWorkload().Add(nemeses.NewKillNemesis("memcached")).Add(NewSetAfterKillGenerator()),
+		// // Partition the cluster, but don't block the web UI port
+		// workloads.GetSetWorkload().Add(nemeses.NewNetworkPartitionNemesis(8091)).Add(NewPartitionAwareGetSetGenerator()),
+		// // Workload to failover (hard or graceful) and recover (full or delta)
+		// workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Graceful", "Full")),
+		// workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Hard", "Full")),
+		// // Workload to test out the disk full injection layer
+		// workloads.GetSetWorkload().Add(nemeses.NewOutOfStorageNemesis()),
+		// Workload to test out the rollback scenario in case of durability = majority
+		workloads.GetSetWorkload().Add(nemeses.NewDiskUnavailableNemesis()),
 	}
 }
