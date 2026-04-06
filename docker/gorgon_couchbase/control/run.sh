@@ -14,6 +14,8 @@ for node in ${NODES//,/ } ; do
     wait_for_node $node 9090
 done
 
+touch /root/store/gorgon_json.log
+
 {
     for workload in /workloads/*.sh ; do
         echo
