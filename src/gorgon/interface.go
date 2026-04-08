@@ -1,6 +1,7 @@
 package gorgon
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -65,6 +66,15 @@ type Operation struct {
 	Call     int64 // invocation timestamp
 	Output   Output
 	Return   int64 // response timestamp
+}
+
+func (op *Operation) MarshalJSON() ([]byte, error) {
+	type alias Operation
+	obj := alias(*op)
+	if err, ok := obj.Output.(error); ok {
+		obj.Output = err.Error()
+	}
+	return json.Marshal(obj)
 }
 
 type State = any
