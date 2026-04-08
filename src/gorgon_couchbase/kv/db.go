@@ -168,6 +168,15 @@ func (db *database) waitForRebalance(apiNode string) error {
 	return nil
 }
 
+func (db *database) requestAddNode(apiNode, addNode string) error {
+	return db.httpPost(apiNode, "controller/addNode", map[string]string{
+		"hostname": addNode,
+		"user":     *db.config.User,
+		"password": *db.config.Pass,
+		"services": "kv",
+	})
+}
+
 func formatOtpNodes(nodes []string) string {
 	var builder strings.Builder
 	for i, node := range nodes {
@@ -259,5 +268,6 @@ func (db *database) Workloads() []gorgon.Workload {
 		// Workload to failover (hard or graceful) and recover (full or delta)
 		workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Graceful", "Full")),
 		workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Hard", "Full")),
+		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "n3.local", "n0.local")),
 	}
 }

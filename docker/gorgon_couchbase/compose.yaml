@@ -12,7 +12,7 @@ services:
     networks:
       - gorgon-net
     environment:
-      NODES: "n0.local,n1.local,n2.local"
+      NODES: "n0.local,n1.local,n2.local,n3.local"
     cpu_count: 4
     mem_limit: 8G
     mem_swappiness: 1
@@ -53,6 +53,19 @@ services:
       - gorgon-net
     ports:
       - "8092:8091"
+    cpu_count: 2
+    mem_limit: 3G
+    mem_swappiness: 1
+  n3:
+    container_name: gorgon-n3
+    hostname: n3.local
+    image: gorgon_couchbase-node
+    pull_policy: never
+    privileged: true
+    networks:
+      - gorgon-net
+    ports:
+      - "8093:8091"
     cpu_count: 2
     mem_limit: 3G
     mem_swappiness: 1
