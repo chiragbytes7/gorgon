@@ -5,11 +5,18 @@ ENV LANG=C.UTF-8
 RUN apt-get -y update && apt-get -y install \
     curl golang-go iptables netcat-openbsd procps python3 sudo tar unzip wget
 
-RUN wget https://packages.couchbase.com/releases/couchbase-release/couchbase-release-1.0-noarch.deb \
-    && dpkg -i couchbase-release-1.0-noarch.deb \
-    && rm couchbase-release-1.0-noarch.deb \
-    && apt-get -y update \
-    && apt-get -y install couchbase-server
+ARG CB_URL=""
+RUN if [ -n "$CB_URL" ]; then \
+        wget -q --show-progress --progress=bar:force "$CB_URL" -O couchbase-server.deb \
+        && dpkg -i couchbase-server.deb \
+        && rm couchbase-server.deb; \
+    else \
+        wget -q --show-progress --progress=bar:force https://packages.couchbase.com/releases/couchbase-release/couchbase-release-1.0-noarch.deb \
+        && dpkg -i couchbase-release-1.0-noarch.deb \
+        && rm couchbase-release-1.0-noarch.deb \
+        && apt-get -y update \
+        && apt-get -y install couchbase-server; \
+    fi
 
 RUN mkdir /root/deps
 ADD deps.tgz /root/deps
