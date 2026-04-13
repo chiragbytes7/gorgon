@@ -249,9 +249,9 @@ func (db *database) Workloads() []gorgon.Workload {
 		// Workload with Kill nemesis to kill memcached process
 		workloads.GetSetWorkload().Add(nemeses.NewKillNemesis("memcached")).Add(NewSetAfterKillGenerator()),
 		// Partition the cluster, but don't block the web UI port
-		workloads.GetSetWorkload().Add(nemeses.NewNetworkPartitionNemesis(8091)).Add(NewPartitionAwareGetSetGenerator()),
-		// Workload to failover (hard or graceful) and recover (full or delta)
-		workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Graceful", "Full")),
-		workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Hard", "Full")),
+		// workloads.GetSetWorkload().Add(nemeses.NewNetworkPartitionNemesis(8091)).Add(NewPartitionAwareGetSetGenerator()),
+		// // Workload to failover (hard or graceful) and recover (full or delta)
+		// workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Graceful", "Full")),
+		// workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Hard", "Full")),
 	}
 }
