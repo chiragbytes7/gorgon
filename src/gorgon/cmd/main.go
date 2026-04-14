@@ -19,6 +19,7 @@ func Main(db gorgon.Database) int {
 	var filter Filter
 	opt := &gorgon.Options{
 		WorkloadDuration: time.Minute,
+		OperationTimeout: 5 * time.Second,
 		Concurrency:      6,
 		RpcPort:          9090,
 	}
@@ -122,6 +123,7 @@ func parseOptions(opt *gorgon.Options, filter *Filter) int {
 	flag.StringVar(&nodes, "gorgon-nodes", nodes, "Comma-separated list of nodes")
 	flag.StringVar(&storeDir, "gorgon-store-dir", storeDir, "Directory to store artefacts (defaults to working directory)")
 	flag.DurationVar(&opt.WorkloadDuration, "gorgon-workload-duration", opt.WorkloadDuration, "Intended workload/nemesis duration")
+	flag.DurationVar(&opt.OperationTimeout, "gorgon-operation-timeout", opt.OperationTimeout, "Timeout for client operations and Upper bound for LDR histogram")
 	flag.IntVar(&opt.Concurrency, "gorgon-concurrency", opt.Concurrency, "Number of clients to use")
 	flag.BoolVar(&opt.ContinueAmbiguousClient, "gorgon-continue-ambiguous-client", false,
 		"Don't stop a worker when its client returns an error that is not unambiguous")
