@@ -20,15 +20,16 @@ import (
 
 // Flags initialized in main.go
 type DatabaseConfig struct {
-	User          *string
-	Pass          *string
-	Port          *int
-	Replicas      *int
-	Durability    *string
-	Timeout       *time.Duration
-	ClientOverRpc *bool
-	StorageEngine *string
-	Vbuckets      *int
+	User           *string
+	Pass           *string
+	Port           *int
+	Replicas       *int
+	Durability     *string
+	Timeout        *time.Duration
+	ClientOverRpc  *bool
+	StorageEngine  *string
+	Vbuckets       *int
+	EvictionPolicy *string
 }
 
 func NewDatabase(config DatabaseConfig) gorgon.Database {
@@ -55,6 +56,11 @@ func (db *database) SetOptions(opt *gorgon.Options) error {
 	}
 	if n := *db.config.Replicas; n < 0 || n > 3 {
 		return fmt.Errorf("kv: invalid number of replicas %d", n)
+	}
+	// validate if eviction policy is of the 2 valid types for a couchbase bucket
+	evictionType := *db.config.EvictionPolicy
+	if evictionType != "fullEviction" && evictionType != "valueOnly" {
+		return fmt.Errorf("kv: invalid bucket eviction policy - %s", evictionType)
 	}
 	return nil
 }
@@ -117,7 +123,7 @@ func (db *database) SetUp() error {
 		"name":           "default",
 		"ramQuota":       "1024",
 		"storageBackend": storageEngine,
-		"evictionPolicy": "fullEviction",
+		"evictionPolicy": *db.config.EvictionPolicy,
 		"replicaNumber":  strconv.Itoa(replicas),
 		"numVBuckets":    strconv.Itoa(vbuckets),
 		"flushEnabled":   "1"}); err != nil {
