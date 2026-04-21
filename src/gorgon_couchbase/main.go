@@ -17,15 +17,16 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
 	db := kv.NewDatabase(kv.DatabaseConfig{
-		User:          flag.String("user", "Administrator", "Couchbase username"),
-		Pass:          flag.String("pass", "password", "Couchbase password"),
-		Port:          flag.Int("port", 11210, "Couchbase port"),
-		Replicas:      flag.Int("replicas", 1, "Number of Couchbase replicas (0-3)"),
-		Durability:    flag.String("durability", "none", "Couchbase durability level"),
-		Timeout:       flag.Duration("timeout", 5*time.Second, "Couchbase operation timeout"),
-		ClientOverRpc: flag.Bool("client-over-rpc", false, "Use RPC for client operations"),
-		StorageEngine: flag.String("storage-engine", "couchstore", "Couchbase storage engine (couchstore/magma)"),
-		Vbuckets:      flag.Int("vbuckets", 1024, "Number of vbuckets for the bucket"),
+		User:           flag.String("user", "Administrator", "Couchbase username"),
+		Pass:           flag.String("pass", "password", "Couchbase password"),
+		Port:           flag.Int("port", 11210, "Couchbase port"),
+		Replicas:       flag.Int("replicas", 1, "Number of Couchbase replicas (0-3)"),
+		Durability:     flag.String("durability", "none", "Couchbase durability level"),
+		Timeout:        flag.Duration("timeout", 5*time.Second, "Couchbase operation timeout"),
+		ClientOverRpc:  flag.Bool("client-over-rpc", false, "Use RPC for client operations"),
+		StorageEngine:  flag.String("storage-engine", "couchstore", "Couchbase storage engine (couchstore/magma)"),
+		Vbuckets:       flag.Int("vbuckets", 1024, "Number of vbuckets for the bucket"),
+		EvictionPolicy: flag.String("eviction-policy", "fullEviction", "Bucket eviction policy (fullEviction/valueOnly)"),
 	})
 
 	// Worker nodes must register RPC handlers before any calls can be served
