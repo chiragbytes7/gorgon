@@ -274,5 +274,9 @@ func (db *database) Workloads() []gorgon.Workload {
 		workloads.GetSetWorkload().Add(NewAdditionalRebalanceGenerator(db, []string{"n0.local", "n1.local"}, []string{"n0.local", "n1.local"}, "sequential")),
 		// Bulk rebalance: remove n0.local and n1.local, add n0.local and n1.local
 		workloads.GetSetWorkload().Add(NewAdditionalRebalanceGenerator(db, []string{"n0.local", "n1.local"}, []string{"n0.local", "n1.local"}, "bulk")),
+		// Swap Rebalance followed by memcached kill on swap-in node
+		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "n3.local", "n0.local", "memcached", "n3.local")),
+		// Rebalance-in n0.local followed by memcached kill on n0.local
+		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "n0.local", "", "memcached")),
 	}
 }

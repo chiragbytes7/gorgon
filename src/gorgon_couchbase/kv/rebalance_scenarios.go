@@ -2,20 +2,26 @@ package kv
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/couchbaselabs/gorgon/src/gorgon"
+	"github.com/couchbaselabs/gorgon/src/gorgon/jrpc"
+	"github.com/couchbaselabs/gorgon/src/gorgon/rpcs"
 )
 
 type rebalanceGenerator struct {
-	db         *database
-	addNode    string
-	removeNode string
-	mode       string
-	apiNode    string   // Node to send the REST api requests
-	nodes      []string // Set of nodes in the cluster in current rebalance scenario
-	invokeTime time.Time
-	done       bool
+	db           *database
+	addNode      string
+	removeNode   string
+	mode         string
+	apiNode      string   // Node to send the REST API requests
+	nodes        []string // Set of nodes in the cluster in current rebalance scenario
+	invokeTime   time.Time
+	done         bool
+	crashLater   bool   // Only set to true when a crash process is specified
+	process      string // Only set when rebalance is followed by a process kill
+	swapKillNode string // Only set in swap rebalance to specify the node to kill
 }
 
 type RebalanceInInstruction struct {
@@ -55,7 +61,7 @@ func (instr *SwapRebalanceInstruction) ForSelf() bool {
 	return true
 }
 
-func NewRebalanceGenerator(db *database, addNode, removeNode string) gorgon.Generator {
+func NewRebalanceGenerator(db *database, addNode, removeNode string, process ...string) gorgon.Generator {
 	var mode string
 
 	if addNode != "" && removeNode != "" {
@@ -66,11 +72,26 @@ func NewRebalanceGenerator(db *database, addNode, removeNode string) gorgon.Gene
 		mode = "rebalance-out"
 	}
 
+	crashLater := len(process) > 0 // Set to true when process is provided to function
+
+	var processName string
+	if len(process) > 0 {
+		processName = process[0]
+	}
+
+	var swapKillNode string // node to kill in swap-rebalance
+	if mode == "swap" && len(process) > 1 {
+		swapKillNode = process[1]
+	}
+
 	return &rebalanceGenerator{
-		db:         db,
-		addNode:    addNode,
-		removeNode: removeNode,
-		mode:       mode,
+		db:           db,
+		addNode:      addNode,
+		removeNode:   removeNode,
+		mode:         mode,
+		process:      processName,
+		crashLater:   crashLater,
+		swapKillNode: swapKillNode,
 	}
 }
 
@@ -120,6 +141,16 @@ func (rebalance *rebalanceGenerator) Next(client int) (gorgon.Instruction, error
 	}
 }
 
+func (rebalance *rebalanceGenerator) killProcess(node string) error {
+	client, err := jrpc.Dial(fmt.Sprintf("%s:%d", node, rebalance.db.options.RpcPort), []byte(rebalance.db.options.RpcPassword))
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+	var reply string
+	return client.Call("KillRpc.Pkill", &rpcs.KillInstruction{Process: rebalance.process, Signal: 9}, &reply)
+}
+
 func (rebalance *rebalanceGenerator) Invoke(instruction gorgon.Instruction, getTime func() int64) (int64, gorgon.Output) {
 	var ejected []string
 	var err error
@@ -147,6 +178,26 @@ func (rebalance *rebalanceGenerator) Invoke(instruction gorgon.Instruction, getT
 	err = rebalance.db.rebalance(rebalance.apiNode, rebalance.nodes, ejected)
 	if err != nil {
 		return getTime(), err
+	}
+	time.Sleep(5 * time.Second) // rebalance takes a while before starting
+	if rebalance.crashLater {
+		var targetNode string
+		switch rebalance.mode {
+		case "rebalance-out":
+			targetNode = rebalance.removeNode
+		case "rebalance-in":
+			targetNode = rebalance.addNode
+		case "swap":
+			targetNode = rebalance.swapKillNode
+			if targetNode == "" { // if no swap kill node was specified
+				targetNode = rebalance.addNode
+			}
+		default:
+			return getTime(), errors.New("unexpected rebalance mode: " + rebalance.mode)
+		}
+		if err := rebalance.killProcess(targetNode); err != nil {
+			return getTime(), err
+		}
 	}
 	return getTime(), rebalance.db.waitForRebalance(rebalance.apiNode)
 }
