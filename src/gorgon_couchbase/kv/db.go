@@ -268,6 +268,11 @@ func (db *database) Workloads() []gorgon.Workload {
 		// Workload to failover (hard or graceful) and recover (full or delta)
 		workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Graceful", "Full")),
 		workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Hard", "Full")),
+		// Swap rebalance: add n3.local, remove n0.local
 		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "n3.local", "n0.local")),
+		// Sequential rebalance: remove n0.local and n1.local, add n0.local and n1.local
+		workloads.GetSetWorkload().Add(NewAdditionalRebalanceGenerator(db, []string{"n0.local", "n1.local"}, []string{"n0.local", "n1.local"}, "sequential")),
+		// Bulk rebalance: remove n0.local and n1.local, add n0.local and n1.local
+		workloads.GetSetWorkload().Add(NewAdditionalRebalanceGenerator(db, []string{"n0.local", "n1.local"}, []string{"n0.local", "n1.local"}, "bulk")),
 	}
 }
