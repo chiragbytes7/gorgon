@@ -3,6 +3,7 @@ package kv
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/couchbaselabs/gorgon/src/gorgon"
@@ -61,7 +62,7 @@ func (instr *SwapRebalanceInstruction) ForSelf() bool {
 	return true
 }
 
-func NewRebalanceGenerator(db *database, addNode, removeNode string, process ...string) gorgon.Generator {
+func NewRebalanceGenerator(db *database, addNode, removeNode string, args ...string) gorgon.Generator {
 	var mode string
 
 	if addNode != "" && removeNode != "" {
@@ -72,16 +73,16 @@ func NewRebalanceGenerator(db *database, addNode, removeNode string, process ...
 		mode = "rebalance-out"
 	}
 
-	crashLater := len(process) > 0 // Set to true when process is provided to function
+	crashLater := len(args) > 0 // Set to true when process is provided to function
 
 	var processName string
-	if len(process) > 0 {
-		processName = process[0]
+	if len(args) > 0 {
+		processName = args[0]
 	}
 
 	var swapKillNode string // node to kill in swap-rebalance
-	if mode == "swap" && len(process) > 1 {
-		swapKillNode = process[1]
+	if mode == "swap" && len(args) > 1 {
+		swapKillNode = args[1]
 	}
 
 	return &rebalanceGenerator{
@@ -179,25 +180,34 @@ func (rebalance *rebalanceGenerator) Invoke(instruction gorgon.Instruction, getT
 	if err != nil {
 		return getTime(), err
 	}
-	time.Sleep(5 * time.Second) // rebalance takes a while before starting
+	time.Sleep(3 * time.Second) // rebalance takes a while before starting
 	if rebalance.crashLater {
 		var targetNode string
-		switch rebalance.mode {
-		case "rebalance-out":
-			targetNode = rebalance.removeNode
-		case "rebalance-in":
-			targetNode = rebalance.addNode
-		case "swap":
-			targetNode = rebalance.swapKillNode
-			if targetNode == "" { // if no swap kill node was specified
-				targetNode = rebalance.addNode
+		if rebalance.process == "beam.smp" {
+			targetNode, err = rebalance.db.findOrchestrator(rebalance.apiNode)
+			if err != nil {
+				return getTime(), err
 			}
-		default:
-			return getTime(), errors.New("unexpected rebalance mode: " + rebalance.mode)
+			targetNode = strings.TrimPrefix(targetNode, "ns_1@")
+		} else {
+			switch rebalance.mode {
+			case "rebalance-out":
+				targetNode = rebalance.removeNode
+			case "rebalance-in":
+				targetNode = rebalance.addNode
+			case "swap":
+				targetNode = rebalance.swapKillNode
+				if targetNode == "" { // if no swap kill node was specified
+					targetNode = rebalance.addNode
+				}
+			default:
+				return getTime(), errors.New("unexpected rebalance mode: " + rebalance.mode)
+			}
 		}
 		if err := rebalance.killProcess(targetNode); err != nil {
 			return getTime(), err
 		}
+		return getTime(), nil // if kill is successful, rebalance stops and rebalance-polling can be skipped
 	}
 	return getTime(), rebalance.db.waitForRebalance(rebalance.apiNode)
 }

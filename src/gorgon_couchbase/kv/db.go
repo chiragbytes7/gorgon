@@ -2,6 +2,7 @@ package kv
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -177,6 +178,25 @@ func (db *database) requestAddNode(apiNode, addNode string) error {
 	})
 }
 
+func (db *database) findOrchestrator(apiNode string) (string, error) {
+	bytes, err := db.httpGet(apiNode, "pools/default/terseClusterInfo")
+	if err != nil {
+		return "", err
+	}
+	obj := make(map[string]interface{})
+	if err := json.Unmarshal(bytes, &obj); err != nil {
+		return "", err
+	}
+	orchestrator, ok := obj["orchestrator"].(string)
+	if !ok {
+		return "", errors.New("kv: cannot parse orchestrator response body")
+	}
+	if orchestrator == "undefined" {
+		return "", errors.New("kv: orchestrator-node not known")
+	}
+	return orchestrator, nil
+}
+
 func formatOtpNodes(nodes []string) string {
 	var builder strings.Builder
 	for i, node := range nodes {
@@ -276,7 +296,9 @@ func (db *database) Workloads() []gorgon.Workload {
 		workloads.GetSetWorkload().Add(NewAdditionalRebalanceGenerator(db, []string{"n0.local", "n1.local"}, []string{"n0.local", "n1.local"}, "bulk")),
 		// Swap Rebalance followed by memcached kill on swap-in node
 		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "n3.local", "n0.local", "memcached", "n3.local")),
-		// Rebalance-in n0.local followed by memcached kill on n0.local
-		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "n0.local", "", "memcached")),
+		// Rebalance-out n0.local followed by memcached kill on n0.local
+		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "", "n0.local", "memcached", "n0.local")),
+		// Rebalance-in n3.local followed by cluster orchestrator crash
+		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "n3.local", "", "beam.smp")),
 	}
 }
