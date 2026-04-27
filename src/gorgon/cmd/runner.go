@@ -16,8 +16,10 @@ import (
 )
 
 var (
-	linearizabilityErr = errors.New("Linearizability check failed")
-	sequentialErr      = errors.New("Sequential consistency check failed")
+	linearizabilityErr        = errors.New("Linearizability check failed")
+	linearizabilityTimeoutErr = errors.New("Linearizability check timed out")
+	sequentialErr             = errors.New("Sequential consistency check failed")
+	sequentialTimeoutErr      = errors.New("Sequential consistency check timed out")
 )
 
 type Runner struct {
@@ -220,8 +222,14 @@ func (runner *Runner) Check(history []gorgon.Operation, dir string) (err error) 
 		level := log.INFO
 		// Save visualization for failed checks to help developers debug the violation
 		if result != porcupine.Ok {
-			if err == nil && runner.options.ErrOnTestFail == "linearizability" {
-				err = linearizabilityErr
+			if runner.options.ErrOnTestFail == "linearizability" {
+				if result == porcupine.Unknown { // partition check timed out
+					if err == nil { // prevents overwriting linearizabilityErr (linearizabilityErr > linearizabilityTimeoutErr)
+						err = linearizabilityTimeoutErr
+					}
+				} else {
+					err = linearizabilityErr
+				}
 			}
 			linearizable = false
 			level = log.WARNING
@@ -249,7 +257,11 @@ func (runner *Runner) Check(history []gorgon.Operation, dir string) (err error) 
 		level := log.INFO
 		if result != checkers.Ok {
 			if err == nil && runner.options.ErrOnTestFail == "sequential" {
-				err = sequentialErr
+				if result == checkers.Unknown {
+					err = sequentialTimeoutErr
+				} else {
+					err = sequentialErr
+				}
 			}
 			level = log.WARNING
 		}

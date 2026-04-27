@@ -71,6 +71,10 @@ func cmdRun(db gorgon.Database, opt *gorgon.Options, filter *Filter) int {
 		}
 		// Verify linearizability/ sequential consistency of observed operations
 		if err := runner.Check(history, ""); err != nil {
+			if err == linearizabilityTimeoutErr || err == sequentialTimeoutErr {
+				log.Error("Consistency check timed out: %v", err)
+				return 3 // error code for unstable(timeout)
+			}
 			log.Error("Error in Runner.Check: %v", err)
 			return 1
 		}
