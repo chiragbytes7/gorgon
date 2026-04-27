@@ -299,6 +299,10 @@ func (db *database) Workloads() []gorgon.Workload {
 		// Rebalance-out n0.local followed by memcached kill on n0.local
 		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "", "n0.local", "memcached", "n0.local")),
 		// Rebalance-in n3.local followed by cluster orchestrator crash
-		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "n3.local", "", "beam.smp")),
+		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "n3.local", "", "beam.smp", "n3.local")),
+		// Rebalance-in n3.local followed by partitioning n3.local
+		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "n3.local", "", "n3.local")),
+		// Rebalance-out n0.local followed by partitioning n0.local
+		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "", "n0.local", "n0.local")),
 	}
 }

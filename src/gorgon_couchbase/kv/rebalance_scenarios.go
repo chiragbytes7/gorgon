@@ -3,6 +3,7 @@ package kv
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,17 +13,18 @@ import (
 )
 
 type rebalanceGenerator struct {
-	db           *database
-	addNode      string
-	removeNode   string
-	mode         string
-	apiNode      string   // Node to send the REST API requests
-	nodes        []string // Set of nodes in the cluster in current rebalance scenario
-	invokeTime   time.Time
-	done         bool
-	crashLater   bool   // Only set to true when a crash process is specified
-	process      string // Only set when rebalance is followed by a process kill
-	swapKillNode string // Only set in swap rebalance to specify the node to kill
+	db             *database
+	addNode        string
+	removeNode     string
+	mode           string
+	apiNode        string   // Node to send the REST API requests
+	nodes          []string // Set of nodes in the cluster in current rebalance scenario
+	invokeTime     time.Time
+	done           bool
+	crashLater     bool   // Only set to true when a crash process is specified
+	partitionLater bool   // Only set to true when a single node is specified implying network partition
+	process        string // Only set when rebalance is followed by a process kill
+	targetNode     string // Set in all rebalance + process crash cases
 }
 
 type RebalanceInInstruction struct {
@@ -73,31 +75,33 @@ func NewRebalanceGenerator(db *database, addNode, removeNode string, args ...str
 		mode = "rebalance-out"
 	}
 
-	crashLater := len(args) > 0 // Set to true when process is provided to function
-
+	var partitionLater bool
+	var crashLater bool
+	var targetNode string
 	var processName string
-	if len(args) > 0 {
+
+	if len(args) == 1 { // only node specified in variadic arguments i.e partition test
+		partitionLater = true
+		targetNode = args[0]
+	} else if len(args) == 2 { // process and node specified in the variadic arguments i.e process-crash test
+		crashLater = true
 		processName = args[0]
+		targetNode = args[1]
 	}
-
-	var swapKillNode string // node to kill in swap-rebalance
-	if mode == "swap" && len(args) > 1 {
-		swapKillNode = args[1]
-	}
-
 	return &rebalanceGenerator{
-		db:           db,
-		addNode:      addNode,
-		removeNode:   removeNode,
-		mode:         mode,
-		process:      processName,
-		crashLater:   crashLater,
-		swapKillNode: swapKillNode,
+		db:             db,
+		addNode:        addNode,
+		removeNode:     removeNode,
+		mode:           mode,
+		process:        processName,
+		crashLater:     crashLater,
+		partitionLater: partitionLater,
+		targetNode:     targetNode,
 	}
 }
 
 func (rebalance *rebalanceGenerator) SetUp(opt *gorgon.Options) error {
-	rebalance.invokeTime = time.Now().Add(30 * time.Second)
+	rebalance.invokeTime = time.Now().Add(20 * time.Second)
 	rebalance.nodes = make([]string, len(rebalance.db.options.Nodes))
 	copy(rebalance.nodes, rebalance.db.options.Nodes)
 	// If rebalance-in configuration
@@ -152,6 +156,48 @@ func (rebalance *rebalanceGenerator) killProcess(node string) error {
 	return client.Call("KillRpc.Pkill", &rpcs.KillInstruction{Process: rebalance.process, Signal: 9}, &reply)
 }
 
+func (rebalance *rebalanceGenerator) createPartition(node string) error {
+	client, err := jrpc.Dial(fmt.Sprintf("%s:%d", node, rebalance.db.options.RpcPort), []byte(rebalance.db.options.RpcPassword))
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+	iptables := func(args ...string) error {
+		var reply string
+		return client.Call("IpTablesRpc.IpTables", &args, &reply)
+	}
+	rpcPort := strconv.Itoa(rebalance.db.options.RpcPort)
+	if err := iptables("-A", "INPUT", "-p", "tcp", "--dport", rpcPort, "-j", "ACCEPT"); err != nil {
+		return err
+	}
+	if err := iptables("-A", "OUTPUT", "-p", "tcp", "--sport", rpcPort, "-j", "ACCEPT"); err != nil {
+		return err
+	}
+	if err := iptables("-A", "INPUT", "-j", "DROP"); err != nil {
+		return err
+	}
+	return iptables("-A", "OUTPUT", "-j", "DROP")
+}
+
+func (rebalance *rebalanceGenerator) healPartition(node string) error {
+	client, err := jrpc.Dial(fmt.Sprintf("%s:%d", node, rebalance.db.options.RpcPort), []byte(rebalance.db.options.RpcPassword))
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+	iptables := func(args ...string) error {
+		var reply string
+		return client.Call("IpTablesRpc.IpTables", &args, &reply)
+	}
+	if err := iptables("-P", "INPUT", "ACCEPT"); err != nil {
+		return err
+	}
+	if err := iptables("-P", "OUTPUT", "ACCEPT"); err != nil {
+		return err
+	}
+	return iptables("-F")
+}
+
 func (rebalance *rebalanceGenerator) Invoke(instruction gorgon.Instruction, getTime func() int64) (int64, gorgon.Output) {
 	var ejected []string
 	var err error
@@ -181,6 +227,17 @@ func (rebalance *rebalanceGenerator) Invoke(instruction gorgon.Instruction, getT
 		return getTime(), err
 	}
 	time.Sleep(3 * time.Second) // rebalance takes a while before starting
+	if rebalance.partitionLater {
+		if err = rebalance.createPartition(rebalance.targetNode); err != nil {
+			return getTime(), err
+		}
+		// sleep till auto failover kicks-in
+		time.Sleep(20 * time.Second)
+		if err = rebalance.healPartition(rebalance.targetNode); err != nil {
+			return getTime(), err
+		}
+		return getTime(), nil
+	}
 	if rebalance.crashLater {
 		var targetNode string
 		if rebalance.process == "beam.smp" {
@@ -190,19 +247,10 @@ func (rebalance *rebalanceGenerator) Invoke(instruction gorgon.Instruction, getT
 			}
 			targetNode = strings.TrimPrefix(targetNode, "ns_1@")
 		} else {
-			switch rebalance.mode {
-			case "rebalance-out":
-				targetNode = rebalance.removeNode
-			case "rebalance-in":
-				targetNode = rebalance.addNode
-			case "swap":
-				targetNode = rebalance.swapKillNode
-				if targetNode == "" { // if no swap kill node was specified
-					targetNode = rebalance.addNode
-				}
-			default:
-				return getTime(), errors.New("unexpected rebalance mode: " + rebalance.mode)
+			if rebalance.mode != "rebalance-in" && rebalance.mode != "rebalance-out" && rebalance.mode != "swap" {
+				return getTime(), errors.New("Rebalance mode unsupported")
 			}
+			targetNode = rebalance.targetNode
 		}
 		if err := rebalance.killProcess(targetNode); err != nil {
 			return getTime(), err
