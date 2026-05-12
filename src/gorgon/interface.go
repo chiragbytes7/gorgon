@@ -57,6 +57,7 @@ type Options struct {
 	ContinueAmbiguousClient bool
 	RpcPort                 int
 	RpcPassword             string
+	StoreDir                string
 }
 
 type Operation struct {
