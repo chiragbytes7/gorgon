@@ -115,10 +115,12 @@ func parseOptions(opt *gorgon.Options, filter *Filter) int {
 	matchPattern := "*"
 	excludePattern := ""
 	nodes := "localhost"
+	storeDir := ""
 
 	flag.StringVar(&matchPattern, "gorgon-match", matchPattern, "Wildcard pattern for scenarios to run")
 	flag.StringVar(&excludePattern, "gorgon-exclude", excludePattern, "Wildcard pattern for scenarios to exclude")
 	flag.StringVar(&nodes, "gorgon-nodes", nodes, "Comma-separated list of nodes")
+	flag.StringVar(&storeDir, "gorgon-store-dir", storeDir, "Directory to store artefacts (defaults to working directory)")
 	flag.DurationVar(&opt.WorkloadDuration, "gorgon-workload-duration", opt.WorkloadDuration, "Intended workload/nemesis duration")
 	flag.IntVar(&opt.Concurrency, "gorgon-concurrency", opt.Concurrency, "Number of clients to use")
 	flag.BoolVar(&opt.ContinueAmbiguousClient, "gorgon-continue-ambiguous-client", false,
@@ -129,6 +131,22 @@ func parseOptions(opt *gorgon.Options, filter *Filter) int {
 	flag.Parse()
 	if flag.NArg() == 0 {
 		return usage()
+	}
+
+	if storeDir != "" {
+		if info, err := os.Stat(storeDir); err == nil && info.IsDir() {
+			opt.StoreDir = storeDir
+		} else {
+			log.Warning("Store directory %q does not exist, falling back to working directory", storeDir)
+		}
+	}
+	if opt.StoreDir == "" {
+		pwd, err := os.Getwd()
+		if err != nil {
+			fmt.Println("Failed to resolve working directory:", err)
+			return 1
+		}
+		opt.StoreDir = pwd
 	}
 
 	// Skip command name (args[0]) to keep only workload-specific arguments
