@@ -20,7 +20,7 @@ type rebalanceGenerator struct {
 	apiNode        string   // Node to send the REST API requests
 	nodes          []string // Set of nodes in the cluster in current rebalance scenario
 	invokeTime     time.Time
-	done           bool
+	done           bool   // Dual purpose - also an indicator of a bad rebalance config
 	crashLater     bool   // Only set to true when a crash process is specified
 	partitionLater bool   // Only set to true when a single node is specified implying network partition
 	process        string // Only set when rebalance is followed by a process kill
@@ -75,6 +75,11 @@ func NewRebalanceGenerator(db *database, addNode, removeNode string, args ...str
 		mode = "rebalance-out"
 	}
 
+	// return stub generator to signify bad rebalance config
+	if (mode == "swap" || mode == "rebalance-in") && addNode != db.options.AdditionalNodes[0] {
+		return &rebalanceGenerator{done: true}
+	}
+
 	var partitionLater bool
 	var crashLater bool
 	var targetNode string
@@ -101,6 +106,9 @@ func NewRebalanceGenerator(db *database, addNode, removeNode string, args ...str
 }
 
 func (rebalance *rebalanceGenerator) SetUp(opt *gorgon.Options) error {
+	if rebalance.done { // early error return in case of bad config
+		return errors.New("bad rebalance config provided")
+	}
 	rebalance.invokeTime = time.Now().Add(20 * time.Second)
 	rebalance.nodes = make([]string, len(rebalance.db.options.Nodes))
 	copy(rebalance.nodes, rebalance.db.options.Nodes)

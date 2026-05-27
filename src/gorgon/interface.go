@@ -52,7 +52,7 @@ type Database interface {
 type Options struct {
 	Args                    []string
 	Nodes                   []string
-	AdditionalNodeCount 	int 
+	AdditionalNodeCount     int
 	AdditionalNodes         []string // Additional nodes for swap-rebalance and rebalance-in
 	WorkloadDuration        time.Duration
 	Concurrency             int

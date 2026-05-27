@@ -278,6 +278,9 @@ func (db *database) ClientConfig() string {
 }
 
 func (db *database) Workloads() []gorgon.Workload {
+	nodes := db.options.Nodes
+	additionalNode := db.options.AdditionalNodes[0]
+
 	return []gorgon.Workload{
 		// Basic workload with getset instruction
 		workloads.GetSetWorkload(),
@@ -288,21 +291,21 @@ func (db *database) Workloads() []gorgon.Workload {
 		// Workload to failover (hard or graceful) and recover (full or delta)
 		workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Graceful", "Full")),
 		workloads.GetSetWorkload().Add(NewFailoverAndRecoveryNemesis(db, "Hard", "Full")),
-		// Swap rebalance: add n3.local, remove n0.local
-		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "n3.local", "n0.local")),
-		// Sequential rebalance: remove n0.local and n1.local, add n0.local and n1.local
-		workloads.GetSetWorkload().Add(NewAdditionalRebalanceGenerator(db, []string{"n0.local", "n1.local"}, []string{"n0.local", "n1.local"}, "sequential")),
-		// Bulk rebalance: remove n0.local and n1.local, add n0.local and n1.local
-		workloads.GetSetWorkload().Add(NewAdditionalRebalanceGenerator(db, []string{"n0.local", "n1.local"}, []string{"n0.local", "n1.local"}, "bulk")),
-		// Swap Rebalance followed by memcached kill on swap-in node
-		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "n3.local", "n0.local", "memcached", "n3.local")),
-		// Rebalance-out n0.local followed by memcached kill on n0.local
-		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "", "n0.local", "memcached", "n0.local")),
-		// Rebalance-in n3.local followed by cluster orchestrator crash
-		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "n3.local", "", "beam.smp", "n3.local")),
-		// Rebalance-in n3.local followed by partitioning n3.local
-		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "n3.local", "", "n3.local")),
-		// Rebalance-out n0.local followed by partitioning n0.local
-		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "", "n0.local", "n0.local")),
+		// Swap rebalance: add additionalNode, remove nodes[0]
+		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, additionalNode, nodes[0])),
+		// Sequential rebalance: remove nodes[0] and nodes[1], add nodes[0] and nodes[1]
+		workloads.GetSetWorkload().Add(NewAdditionalRebalanceGenerator(db, []string{nodes[0], nodes[1]}, []string{nodes[0], nodes[1]}, "sequential")),
+		// Bulk rebalance: remove nodes[0] and nodes[1], add nodes[0] and nodes[1]
+		workloads.GetSetWorkload().Add(NewAdditionalRebalanceGenerator(db, []string{nodes[0], nodes[1]}, []string{nodes[0], nodes[1]}, "bulk")),
+		// Swap rebalance followed by memcached kill on swap-in node
+		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, additionalNode, nodes[0], "memcached", additionalNode)),
+		// Rebalance-out nodes[0] followed by memcached kill on nodes[0]
+		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "", nodes[0], "memcached", nodes[0])),
+		// Rebalance-in additionalNode followed by cluster orchestrator crash
+		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, additionalNode, "", "beam.smp", additionalNode)),
+		// Rebalance-in additionalNode followed by partitioning additionalNode
+		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, additionalNode, "", additionalNode)),
+		// Rebalance-out nodes[0] followed by partitioning nodes[0]
+		workloads.GetSetWorkload().Add(NewRebalanceGenerator(db, "", nodes[0], nodes[0])),
 	}
 }
